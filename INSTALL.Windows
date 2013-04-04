@@ -1,0 +1,21 @@
+#### INSTALLATION #
+
+You must download and install Winpcap from: 
+
+http://winpcap.polito.it
+
+I recommend version 3.0 at this time.
+
+Then, unzip Bandwidthd to the folder of your choice. Edit 
+etc/bandwidthd.conf to suit your environment. Double click 
+"Install Service" to install the service.  You can now start 
+Bandwidthd from the services control panel.  Stopping the 
+service from the services panel not supported.  You will 
+need to kill it with task manager if you want it stopped.
+
+If you have more than one network interface card, and you 
+want to listen on a specific device, you can run 
+"List Device Names" to produce a list of devices that can 
+be used on the "dev" line in bandwidthd.conf.  By default, 
+Bandwidthd listens on the first interface it detects.
+

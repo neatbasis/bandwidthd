@@ -1,0 +1,1887 @@
+Only in .: .svn
+Only in .: BD.diff
+diff -r /home/perkins/Source/wrk/bandwidthd/CHANGELOG ./CHANGELOG
+0a1,24
+> 2.0.2.IPv6
+> 
+> Added support for mac addresses in sqlite.
+> Renamed sqlight.c to sqlite.c
+> 
+> Added second param to IPTableTransform.main for the name of the sensor in use.
+> Included sample IPTableTransform.py that outputs to a mysql DB
+> Changed name of python module from LookupMac to IPTableTransform
+> Fixed bug in pgsql.c where it was passing the mac address to HostIp2CharIp instead of the IP address (pgsql.c)
+> Fixed bug in pgsql.c where it was passing the wrong number of parameters to PQexecParams (pgsql.c)
+> Added support for excluding subnets. (conf.l conf.y)
+> Added mac record support for pgsql. (pgsql.c)
+> 
+> Cleaned up whitespace (bandwidthd.c)
+> Moved global variables from top of bandwidthd.c to bandwidthd.h 
+> 	(help avoid namespace collisions if someone only looks in the header file)
+> Added struct for vlan headers (bandwidthd.h)
+> Added configure option for turning pgsql off (configure.in)
+> Added functions for ignoring subnets (bandwidthd.c)
+> Added configure option for embedding python for scripting and to optimize ip lookups (bandwidthd.c bandwidthd.h configure.in)
+> 
+> 
+> 2.0.1
+> 
+diff -r /home/perkins/Source/wrk/bandwidthd/INSTALL.Unix ./INSTALL.Unix
+15a16,17
+> autoconf && autoheader
+> 
+Only in .: IPTableTransform.py
+diff -r /home/perkins/Source/wrk/bandwidthd/Makefile.in ./Makefile.in
+10c10
+< OBS= bandwidthd.o graph.o conf.tab.o conf.l.o pgsql.o sqlight.o extensions.o
+---
+> OBS= bandwidthd.o graph.o conf.tab.o conf.l.o pgsql.o sqlite.o extensions.o
+diff -r /home/perkins/Source/wrk/bandwidthd/README ./README
+0a1,8
+> Copyright Logan Perkins 2012 <perkins@alestan.publicvm.com>
+> 
+> Parts copyright David Hinkle.
+> 
+> Based off of bandwidthd, by David Hinkle.  Special thanks to the bandwidthd 
+> team of developers.  The original readme file follows below, as the changes
+> thus far have been minor.  For the complete changes since the fork, see BD.diff
+> 
+diff -r /home/perkins/Source/wrk/bandwidthd/TODO ./TODO
+0a1,7
+> Add struct for storing IPv6 information
+> Make IP information use a linked list
+> Add mac record support to sqlite and cdf
+> Add support for multiple sensors using the python DBAPI
+> 
+> OLD PROJECT TODO (will still get done)
+> 
+16a24,26
+> 
+> 
+> 
+diff -r /home/perkins/Source/wrk/bandwidthd/aclocal.m4 ./aclocal.m4
+8a9,11
+> 
+> 
+> 
+diff -r /home/perkins/Source/wrk/bandwidthd/bandwidthd.c ./bandwidthd.c
+16,21d15
+< // ****************************************************************************************
+< // ** Global Variables
+< // ****************************************************************************************
+< 
+< #define SNAPLEN 100
+< 
+23d16
+< 
+26a20
+> unsigned int NotSubnetCount = 0;
+33d26
+< 
+34a28
+> struct SubnetData NotSubnetTable[SUBNET_NUM];
+35a30,34
+> size_t ICGrandTotalDataPoints = 0;
+> 
+> #ifdef HAVE_PYTHON
+> PyObject *IpTableDict;
+> #endif
+39d37
+< 
+41a40
+> void BroadcastState(int fd);
+43d41
+< 
+45c43
+< 
+---
+> struct Broadcast *Broadcasts = NULL;
+47d44
+< 
+50a48
+> 
+61d58
+< 
+72d68
+< 
+89d84
+< 
+94d88
+< 
+102d95
+< 	
+130d122
+< 
+134d125
+< 
+137d127
+< 
+149d138
+< 			
+151d139
+< 
+154d141
+< 
+157d143
+< 
+168d153
+< 
+170d154
+< 	
+174d157
+< 
+179d161
+< 
+188,189c170,171
+< 
+< 	switch (level) {
+---
+> 	switch (level) 
+> 	{
+195c177
+< 		break;
+---
+> 			break;
+203c185
+< 		break;
+---
+> 			break;
+211c193
+< 		break;
+---
+> 			break;
+219,220c201
+< 		break;
+< 
+---
+> 			break;
+230d210
+< 
+241c221
+< 			fclose(pidfile);		
+---
+> 			fclose(pidfile);
+281d260
+< 
+284d262
+< 
+286d263
+< 
+290d266
+< 
+319d294
+< 
+323c298
+< 	config.filter = "ip";
+---
+> 	config.filter = "ip or ether proto 1537";
+338d312
+< 
+340d313
+< 
+365d337
+< 
+374d345
+< 
+382c353,358
+< 
+---
+>   for (Counter = 0; Counter < NotSubnetCount; Counter++)
+>     {
+>     addr.s_addr = ntohl(NotSubnetTable[Counter].ip);
+>     addr2.s_addr = ntohl(NotSubnetTable[Counter].mask);
+>     syslog(LOG_INFO, "Ignoring subnet %s with netmask %s", inet_ntoa(addr), inet_ntoa(addr2));
+>     }
+402,403c378
+< #endif	
+< 
+---
+> #endif
+406d380
+< 
+411d384
+< 
+413d385
+< 
+415d386
+< 
+422d392
+< 
+426d395
+< 
+432d400
+< 
+441d408
+< 
+444d410
+< 
+447d412
+< 
+449,450c414
+< 
+< 	syslog(LOG_INFO, "Opening %s", config.dev);	
+---
+> 	syslog(LOG_INFO, "Opening %s", config.dev);
+457d420
+< 
+465d427
+< 
+468d429
+< 
+480c441
+< 			break;	
+---
+> 			break;
+502d462
+< 
+504c464
+< 		{											
+---
+> 		{
+509d468
+< 
+515c474,478
+< 
+---
+> #ifdef HAVE_PYTHON
+> 	Py_Initialize();
+> 	IpTableDict=PyDict_New();
+> 	Py_Finalize();
+> #endif
+524c487,491
+< 		if (IntervalFinished)  // Then write out this intervals data and possibly kick off the grapher
+---
+> 		if (IntervalFinished){  // Then write out this intervals data and possibly kick off the grapher
+> #ifdef HAVE_PYTHON
+> 			PyDict_Clear(IpTableDict);
+> 			Py_Finalize();
+> #endif
+526c493
+< 
+---
+> 		}
+534d500
+< 
+536c502
+< 	exit(0);		
+---
+> 	exit(0);
+542d507
+< 
+548d512
+< 
+553c517
+< 		ProgramStart = current_time;	
+---
+> 		ProgramStart = current_time;
+555d518
+< 
+557a521
+> 	BroadcastState(pcap_fileno(pd));
+564a529,597
+> // Write an ethernet packet describing us out the given socket
+> void BroadcastState(int fd)
+>   {
+>   char buf[SNAPLEN];
+>   char enet_broadcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+>   struct ether_header *eptr;
+>   if (DataLink != DLT_EN10MB)
+>     return;
+>   if ((14+strlen(config.sensor_name)+strlen(config.dev)) > SNAPLEN)
+>     {
+>     syslog(LOG_ERR, "Sensor and device name too long for broadcast");
+>     return;
+>     }
+>   bzero(buf, sizeof(buf));
+>   eptr = (struct ether_header *) buf;    /* start of 16-byte Ethernet header */
+>   // Always broadcast
+>   memcpy(&buf[0], enet_broadcast, 6);
+>   memcpy(&buf[6], enet_broadcast, 6); // Would rather use our own mac address
+>   eptr->ether_type = htons(1537); // Random packet type we'll use for bandwidthd
+>   memcpy(buf+14, config.sensor_name, strlen(config.sensor_name)+1);
+>   memcpy(buf+14+strlen(config.sensor_name)+1, config.dev, strlen(config.dev)+1);
+>   if (write(fd, buf, SNAPLEN) != SNAPLEN)
+>     syslog(LOG_ERR, "Write error during bandwidthd broadcast");
+>   }
+> 
+> void ParseBroadcast(const u_char *in)
+>   {
+>   char *p = (char *)in+14; // Skip ethernet header
+>   struct Broadcast *bc;
+>   struct Broadcast *bc2;
+>   char *sensor_name;
+>   char *interface;
+>   sensor_name = p;
+>   interface = p+strlen(p)+1;
+>   // Sanity check
+>   if (strlen(sensor_name) > SNAPLEN || strlen(interface) > SNAPLEN)
+>     {
+>     syslog(LOG_ERR, "Bandwidthd broadcast packet failed sanity check, discarding");
+>     return;
+>     }
+>   if ((!strcmp(sensor_name, config.sensor_name)) && (!strcmp(interface, config.dev)))
+>     return; // Our own packet
+>   for (bc = Broadcasts; bc; bc = bc->next)
+>     {
+>     if ((!strcmp(sensor_name, bc->sensor_name)) && (!strcmp(interface, bc->interface)))
+>       {
+>       // Found this link
+>       bc->received = time(NULL);
+>       return;
+>       }
+>     }
+>   bc2 = malloc(sizeof(struct Broadcast));
+>   bc2->sensor_name = strdup(sensor_name);
+>   bc2->interface = strdup(interface);
+>   bc2->received = time(NULL);
+>   bc2->next = NULL;
+>   if (Broadcasts == NULL)
+>     {
+>     Broadcasts = bc2;
+>     return;
+>     }
+>   else
+>     {
+>     for (bc = Broadcasts; bc->next; bc = bc->next);
+>     bc->next = bc2;
+>     return;
+>     }
+>   }
+> 
+568c601,602
+< 
+---
+> 	unsigned short SkipSrc = 0;
+> 	unsigned short SkipDst = 0;
+570a605
+> 	struct VlanHeader *vlanhdr;
+572d606
+< 
+575d608
+< 
+577d609
+< 
+580d611
+< 
+582c613,617
+< 
+---
+> 	vlanhdr = (struct vlanhdr *) p;
+> 	if (eptr->ether_type == htons(1537))
+> 		ParseBroadcast(p);
+> 	if (vlanhdr->ether_type[0]==0x81 && vlanhdr->ether_type[1]==0x00) //Two byte-wise checks instead of 1 word-wise check to avoid word boundary issues on some intel processors
+> 		p+=4;
+585d619
+< 
+587d620
+< 
+590d622
+< 
+593c625,635
+< 	
+---
+> 	for (Counter = 0; Counter < NotSubnetCount; Counter++)
+> 		{
+> 		if (NotSubnetTable[Counter].ip == (srcip & NotSubnetTable[Counter].mask))  //In the list of subnets we're ignoring.
+> 			{
+> 			SkipSrc=1;
+> 			}
+> 		if (NotSubnetTable[Counter].ip == (dstip & NotSubnetTable[Counter].mask))  //In the list of subnets we're ignoring.
+> 			{
+> 			SkipDst=1;
+> 			}
+> 		}
+595c637
+< 		{	 
+---
+> 		{
+598d639
+< 
+601c642
+< 		if (SubnetTable[Counter].ip == (srcip & SubnetTable[Counter].mask))
+---
+> 		if ((SubnetTable[Counter].ip == (srcip & SubnetTable[Counter].mask)) && !SkipSrc)
+608d648
+< 
+613,614c653
+< 	
+< 		if (SubnetTable[Counter].ip == (dstip & SubnetTable[Counter].mask))
+---
+> 		if ((SubnetTable[Counter].ip == (dstip & SubnetTable[Counter].mask)) && !SkipDst)
+621d659
+< 
+625c663
+< 			}						 
+---
+> 			}
+630d667
+< 
+638d674
+< 
+641d676
+< 
+650d684
+< 
+659d692
+< 	
+675d707
+< 		
+680a713,755
+> void IgnoreMonitorSubnet(unsigned int ip, unsigned int mask)
+>   {
+>   unsigned int subnet = ip & mask;
+>   int Counter, Counter2;
+>   struct in_addr addr, addr2;
+>   addr.s_addr = ntohl(subnet);
+>   addr2.s_addr = ntohl(mask);
+>   for (Counter = 0; Counter < NotSubnetCount; Counter++)
+>     {
+>     if ((NotSubnetTable[Counter].ip == subnet) && (NotSubnetTable[Counter].mask == mask))
+>       {
+>       syslog(LOG_ERR, "Subnet %s/%s already exists, skipping.", inet_ntoa(addr), inet_ntoa(addr2));
+>       return;
+>       }
+>     }
+>   for (Counter = 0; Counter < NotSubnetCount; Counter++)
+>     {
+>     if ((NotSubnetTable[Counter].ip == (ip & NotSubnetTable[Counter].mask)) && (NotSubnetTable[Counter].mask < mask))
+>       {
+>       syslog(LOG_ERR, "Subnet %s/%s is already excluded, skipping.", inet_ntoa(addr), inet_ntoa(addr2));
+>       return;
+>       }
+>     }
+>   for (Counter = 0; Counter < NotSubnetCount; Counter++)
+>     {
+>     if (((NotSubnetTable[Counter].ip & mask) == subnet) && (NotSubnetTable[Counter].mask > mask))
+>       {
+>       syslog(LOG_ERR, "Subnet %s/%s includes already excluded subnet, removing smaller entry", inet_ntoa(addr), inet_ntoa(addr2));
+>       // Shift everything down
+>       for (Counter2 = Counter; Counter2 < NotSubnetCount-1; Counter2++)
+>         {
+>         NotSubnetTable[Counter2].ip = NotSubnetTable[Counter2+1].ip;
+>         NotSubnetTable[Counter2].mask = NotSubnetTable[Counter2+1].mask;
+>         }
+>       NotSubnetCount--;
+>       Counter--; // Retest this entry because we replaced it
+>       }
+>     }
+>   NotSubnetTable[NotSubnetCount].mask = mask;
+>   NotSubnetTable[NotSubnetCount].ip = subnet;
+>   NotSubnetCount++;
+>   }
+> 
+687d761
+< 
+689d762
+< 
+692d764
+< 	
+699d770
+< 
+718c789
+< 						return;					
+---
+> 						return;
+737c808
+< 					case 28864: // hotComm				
+---
+> 					case 28864: // hotComm
+740c811
+< 						return;	
+---
+> 						return;
+757c828
+< 	struct IPDataStore *PrevDataStore;	
+---
+> 	struct IPDataStore *PrevDataStore;
+759d829
+< 	
+762d831
+< 
+776c845
+< 				free(DataStore);												
+---
+> 				free(DataStore);
+779c848
+< 				}				
+---
+> 				}
+794,795c863
+< 
+< 		PrevDataStore = DataStore;				
+---
+> 		PrevDataStore = DataStore;
+805c873
+< 		sqliteStoreIPData(IncData, extension_data);	
+---
+> 		sqliteStoreIPData(IncData, extension_data);
+816d883
+< 	
+818d884
+< 
+820d885
+< 
+829c894
+< 		fprintf(cdf, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu\n", Stats->total, Stats->icmp, Stats->udp, Stats->tcp, Stats->ftp, Stats->http, Stats->mail, Stats->p2p); 		
+---
+> 		fprintf(cdf, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu\n", Stats->total, Stats->icmp, Stats->udp, Stats->tcp, Stats->ftp, Stats->http, Stats->mail, Stats->p2p); 
+838d902
+< 
+843d906
+< 			
+846d908
+< 					
+850d911
+< 
+853c914
+< 		IPDataStore->FirstBlock->Next = NULL;																		
+---
+> 		IPDataStore->FirstBlock->Next = NULL;
+860d920
+< 
+862d921
+< 
+869d927
+< 
+888d945
+< 
+891,892c948
+< 				}						
+< 
+---
+> 				}
+901d956
+< 				
+904d958
+< 					
+910c964
+< 				DataStore->Next->FirstBlock->Next = NULL;																		
+---
+> 				DataStore->Next->FirstBlock->Next = NULL;
+912,913c966
+< 	
+< 			DataStore = DataStore->Next;			
+---
+> 			DataStore = DataStore->Next;
+921d973
+< 
+935,936d986
+< 
+< 
+940d989
+< 
+946c995,1001
+< 
+---
+> #ifdef HAVE_PYTHON
+> 	//Run python plugin script on IpTable
+> 	Py_Initialize();
+> 	initbandwidthd();
+> 	iptable_Transform(IpCount);
+> 	Py_Finalize();
+> #endif
+951d1005
+< 
+957d1010
+< 
+962d1014
+< 
+965d1016
+< 
+969c1020
+< 			logname2[offset] = '4';			
+---
+> 			logname2[offset] = '4';
+973c1024
+< 			logname2[offset] = '3';			
+---
+> 			logname2[offset] = '3';
+977c1028
+< 			logname2[offset] = '2';			
+---
+> 			logname2[offset] = '2';
+981c1032
+< 			logname2[offset] = '1';			
+---
+> 			logname2[offset] = '1';
+988d1038
+< 
+992d1041
+< 
+995,996c1044
+< 			MayGraph = TRUE;				
+< 
+---
+> 			MayGraph = TRUE;
+1001d1048
+< 
+1004d1050
+< 
+1016d1061
+< 
+1043d1087
+< 
+1045d1088
+< 
+1062c1105
+< 			return;	
+---
+> 			return;
+1075a1119,1121
+> #ifdef HAVE_PYTHON
+> 	Py_Initialize();
+> #endif
+1087d1132
+< 
+1092d1136
+< 
+1095d1138
+< 
+1102c1145
+< 			}			
+---
+> 			}
+1106d1148
+< 
+1113c1155
+< 			goto End_RecoverDataFromCdf;		
+---
+> 			goto End_RecoverDataFromCdf;
+1115d1156
+< 
+1134d1174
+< 
+1136d1175
+< 
+1143d1181
+< 	
+1168c1206
+< 	
+---
+> #ifndef HAVE_PYTHON
+1172c1210,1224
+< 	
+---
+> #else
+> 	PyObject *oIP;
+> 	PyObject *oCounter;
+> 	oIP=PyInt_FromLong(ipaddr);
+> 	Counter=PyDict_Contains(IpTableDict, oIP);
+> 	if (Counter==-1){
+> 		printf("PyDict_Contains had an error.\n");
+> 		abort();
+> 	}
+> 	if (Counter){
+> 		Counter=PyInt_AsLong(PyDict_GetItem(IpTableDict, oIP));
+> 		Py_DECREF(oIP);
+> 		return &IpTable[Counter];
+> 	}
+> #endif
+1183c1235
+< 	
+---
+> #ifndef HAVE_PYTHON
+1185a1238,1245
+> #else
+> 	oCounter=PyInt_FromLong(IpCount);
+>   IpTable[IpCount].ip = ipaddr;
+>   PyDict_SetItem(IpTableDict, oIP, oCounter);
+>   Py_DECREF(oCounter);
+>   Py_DECREF(oIP);
+>   return (&IpTable[IpCount++]);
+> #endif
+1188,1189d1247
+< size_t ICGrandTotalDataPoints = 0;
+< 
+1194d1251
+< 
+1201d1257
+< 
+1211d1266
+< 
+1225d1279
+< 
+1228d1281
+< 	
+1231a1285,1321
+> #ifdef HAVE_PYTHON
+> void iptable_Transform(uint32_t Counter)
+>   {
+>   PyObject *pName, *pModule, *pFunc;
+>   PyObject *pArgs, *pValue;
+>   pName = PyString_FromString("IPTableTransform");
+>   PyRun_SimpleString("import sys\nsys.path.append('.')\n");
+>   pModule = PyImport_Import(pName);
+>   Py_DECREF(pName);
+>   if (pModule != NULL)
+>     {
+>     pFunc = PyObject_GetAttrString(pModule, "main");
+>     if (pFunc && PyCallable_Check(pFunc))
+>       {
+>       pArgs= PyTuple_New(2);
+>       PyTuple_SetItem(pArgs, 0, PyLong_FromUnsignedLong(Counter));
+>       PyTuple_SetItem(pArgs, 1, PyString_FromString(config.sensor_name));
+>       pValue = PyObject_CallObject(pFunc, pArgs);
+>       Py_DECREF(pArgs);
+>       if (pValue != NULL)
+>         {
+>         printf("Result of call: %s\n", PyString_AsString(pValue));
+>         Py_DECREF(pValue);
+>         }
+>       else
+>         {
+>         Py_DECREF(pFunc);
+>         Py_DECREF(pModule);
+>         PyErr_Print();
+>         fprintf(stderr,"Call failed\n");
+>         Py_Finalize();
+>         return;
+>         }
+>       }
+>     }
+>   return;
+>   }
+1232a1323,1394
+> static PyObject *bandwidthd_get_entry_as_dict(PyObject *self, PyObject* args)
+> {
+>   uint32_t iCounter;
+>   struct IPData ip_entry;
+>   if (!PyArg_ParseTuple(args, "k", &iCounter))
+>     return NULL;
+>   ip_entry=IpTable[iCounter];
+>   return Py_BuildValue("{s:k,s:s,s:l,s:{s:K,s:K,s:K,s:K,s:K,s:K,s:K,s:K,s:K},s:{s:K,s:K,s:K,s:K,s:K,s:K,s:K,s:K,s:K}}",
+>     "ip"    , ip_entry.ip,
+>     "mac"    , ip_entry.mac,
+>     "timestamp" , ip_entry.timestamp,
+>     "send"    ,
+>     "total"  , ip_entry.Send.total,
+>     "tcp"    , ip_entry.Send.tcp,
+>     "udp"    , ip_entry.Send.udp,
+>     "p2p"    , ip_entry.Send.p2p,
+>     "mail"    , ip_entry.Send.mail,
+>     "icmp"    , ip_entry.Send.icmp,
+>     "http"    , ip_entry.Send.http,
+>     "ftp"    , ip_entry.Send.ftp,
+>     "packets"   , ip_entry.Send.packet_count,
+>     "receive"   ,
+>     "total"  , ip_entry.Receive.total,
+>     "tcp"    , ip_entry.Receive.tcp,
+>     "udp"    , ip_entry.Receive.udp,
+>     "p2p"    , ip_entry.Receive.p2p,
+>     "mail"    , ip_entry.Receive.mail,
+>     "icmp"    , ip_entry.Receive.icmp,
+>     "http"    , ip_entry.Receive.http,
+>     "ftp"    , ip_entry.Receive.ftp,
+>     "packets"   , ip_entry.Receive.packet_count
+>     );
+> }
+> static PyObject *bandwidthd_set_entry_by_dict(PyObject *self, PyObject* args)
+> {
+> #if 0
+>   uint32_t iCounter;
+>   int *len;
+>   char *mac;
+>   struct IPData ip_entry;
+>   if (!PyArg_ParseTuple(args,
+>    "k(ks#lKKKKKKKKKKKKKKKKKK)", &iCounter, &ip_entry.ip, &mac,&len, &ip_entry.timestamp, &ip_entry.Send.total, &ip_entry.Send.tcp, &ip_entry.Send.udp, &ip_entry.Send.p2p, &ip_entry.Send.mail, &ip_entry.Send.icmp, &ip_entry.Send.http, &ip_entry.Send.ftp, &ip_entry.Send.packet_count, &ip_entry.Receive.total, &ip_entry.Receive.tcp, &ip_entry.Receive.udp, &ip_entry.Receive.p2p, &ip_entry.Receive.mail, &ip_entry.Receive.icmp, &ip_entry.Receive.http, &ip_entry.Receive.ftp, &ip_entry.Receive.packet_count))
+>     return NULL;
+>   strncpy(IpTable[iCounter].mac[0], mac, 17);
+>   IpTable[iCounter].mac[0][17] = '\0';
+>   printf("ip: %i\nnew_ip: %i\n", IpTable[iCounter].ip,ip_entry.ip);
+>   return Py_BuildValue("s",IpTable[iCounter].mac[0]);
+> #else
+>   uint32_t iCounter;
+>   int *len;
+>   char *mac;
+>   if (!PyArg_ParseTuple(args, "ks#", &iCounter, &mac,&len))
+>      return NULL;
+>   strncpy(IpTable[iCounter].mac[0], mac, 17);
+>   IpTable[iCounter].mac[0][17] = '\0';
+>   return Py_BuildValue("s",IpTable[iCounter].mac[0]);
+> #endif
+> }
+> 
+> 
+> static PyMethodDef bandwidthd_methods[] = {
+>   {"get_entry",      bandwidthd_get_entry_as_dict,    METH_VARARGS, "Return dictionary of IpTable entry for the given ip and timestamp."},
+>   {"set_entry",      bandwidthd_set_entry_by_dict,    METH_VARARGS, "Set dictionary of IpTable entry for the given ip and timestamp."},
+>   {NULL,        NULL}      /* sentinel */
+> };
+> 
+> void initbandwidthd(void)
+> {
+>   PyImport_AddModule("bandwidthd");
+>   Py_InitModule("bandwidthd", bandwidthd_methods);
+> }
+> #endif //HAVE_PYTHON
+diff -r /home/perkins/Source/wrk/bandwidthd/bandwidthd.h ./bandwidthd.h
+4a5,8
+> #ifdef HAVE_PYTHON
+> #include <Python.h>
+> #endif
+> 
+71c75
+< #define IP_NUM 10000			// TODO: Do this dynamicly to save ram and/or scale bigger
+---
+> #define IP_NUM 256*256			// TODO: Do this dynamicly to save ram and/or scale bigger
+156a161
+> 	char *mac[1][20];
+174c179
+< 	unsigned long long MAIL;	
+---
+> 	unsigned long long MAIL;
+180c185
+< 	uint32_t ip;	
+---
+> 	uint32_t ip;
+195a201,219
+> struct Broadcast
+>   {
+>   char *sensor_name;
+>   char *interface;
+>   time_t received;
+> 
+>   struct Broadcast *next;
+>   };
+> 
+> // Vlan header
+> 
+> struct VlanHeader
+> {
+>   u_int8_t  ether_dhost[6];  /* destination eth addr */
+>   u_int8_t  ether_shost[6];  /* source ether addr  */
+>   u_int8_t  ether_type[2];   /* packet type ID field */
+>   u_int8_t  vlan_tag[2];     /* vlan tag information */
+> } __attribute__ ((__packed__));
+> 
+217a242
+> 
+253a279,322
+> // ************ Python
+> #ifdef HAVE_PYTHON
+> void iptable_Transform(uint32_t Counter);
+> void initbandwidthd(void);
+> #endif
+> 
+> 
+> // ** Global Variables
+> 
+> #define SNAPLEN 100
+> 
+> /*
+> static pcap_t *pd;
+> unsigned int GraphIntervalCount = 0;
+> unsigned int IpCount = 0;
+> unsigned int SubnetCount = 0;
+> unsigned int NotSubnetCount = 0;
+> int IntervalFinished = FALSE;
+> time_t IntervalStart;
+> time_t ProgramStart;
+> int RotateLogs = FALSE;
+> int PacketCallbackLock = 0;
+> pid_t pidGraphingChild = 0;
+> struct SubnetData SubnetTable[SUBNET_NUM];
+> struct SubnetData NotSubnetTable[SUBNET_NUM];
+> struct IPData IpTable[IP_NUM];
+> size_t ICGrandTotalDataPoints = 0;
+> 
+> #ifdef HAVE_PYTHON
+> PyObject *IpTableDict;
+> #endif
+> 
+> int DataLink;
+> int IP_Offset;
+> struct IPDataStore *IPDataStore = NULL;
+> extern int bdconfig_parse(void);
+> void BroadcastState(int fd);
+> extern FILE *bdconfig_in;
+> struct config config;
+> struct Broadcast *Broadcasts = NULL;
+> pid_t workerchildpids[NR_WORKER_CHILDS];
+> void ResetTrafficCounters(void);
+> void CloseInterval(void);
+> */
+diff -r /home/perkins/Source/wrk/bandwidthd/conf.l ./conf.l
+10,12c10,12
+< [ \t]+      			/* Ignore */;
+< \n						{ return TOKNEWLINE; }
+< #.*\n        			{ return TOKNEWLINE; }
+---
+> [ \t]+            /* Ignore */;
+> \n            { return TOKNEWLINE; }
+> #.*\n              { return TOKNEWLINE; }
+14,16c14,16
+< [-0-9]+					{ bdconfig_lval.number=atoi(yytext); return NUMBER; }
+< \".*\"					{ bdconfig_lval.string=strdup(yytext); return STRING; }
+< \/						{ return TOKSLASH; }
+---
+> [-0-9]+          { bdconfig_lval.number=atoi(yytext); return NUMBER; }
+> \".*\"          { bdconfig_lval.string=strdup(yytext); return STRING; }
+> \/            { return TOKSLASH; }
+18,36c18,37
+< subnet					{ return TOKSUBNET; }
+< dev						{ return TOKDEV; }
+< skip_intervals			{ return TOKSKIPINTERVALS; }
+< graph_cutoff			{ return TOKGRAPHCUTOFF; }
+< promiscuous				{ return TOKPROMISC; }
+< output_cdf				{ return TOKOUTPUTCDF; }		
+< recover_cdf				{ return TOKRECOVERCDF; }		
+< graph					{ return TOKGRAPH; }
+< filter					{ return TOKFILTER; }
+< meta_refresh			{ return TOKMETAREFRESH; }
+< pgsql_connect_string	{ return TOKPGSQLCONNECTSTRING; }
+< sqlite_filename			{ return TOKSQLITEFILENAME; }
+< sensor_id				{ return TOKSENSORID; }
+< htdocs_dir				{ return TOKHTDOCSDIR; }
+< log_dir					{ return TOKLOGDIR; }
+< description				{ return TOKDESCRIPTION; }
+< management_url			{ return TOKMANAGEMENTURL; }
+< extensions				{ return TOKEXTENSIONS; }
+< .						{ return TOKJUNK; }
+---
+> subnet          { return TOKSUBNET; }
+> notsubnet         { return TOKNOTSUBNET; }
+> dev            { return TOKDEV; }
+> skip_intervals      { return TOKSKIPINTERVALS; }
+> graph_cutoff      { return TOKGRAPHCUTOFF; }
+> promiscuous        { return TOKPROMISC; }
+> output_cdf        { return TOKOUTPUTCDF; }    
+> recover_cdf        { return TOKRECOVERCDF; }    
+> graph          { return TOKGRAPH; }
+> filter          { return TOKFILTER; }
+> meta_refresh      { return TOKMETAREFRESH; }
+> pgsql_connect_string  { return TOKPGSQLCONNECTSTRING; }
+> sqlite_filename      { return TOKSQLITEFILENAME; }
+> sensor_id        { return TOKSENSORID; }
+> htdocs_dir        { return TOKHTDOCSDIR; }
+> log_dir          { return TOKLOGDIR; }
+> description        { return TOKDESCRIPTION; }
+> management_url      { return TOKMANAGEMENTURL; }
+> extensions        { return TOKEXTENSIONS; }
+> .            { return TOKJUNK; }
+diff -r /home/perkins/Source/wrk/bandwidthd/conf.y ./conf.y
+14a15
+> extern unsigned int NotSubnetCount;
+15a17
+> extern struct SubnetData NotSubnetTable[];
+23,25c25,27
+<     fprintf(stderr, "Syntax Error \"%s\" on line %d\n", str, LineNo);
+< 	syslog(LOG_ERR, "Syntax Error \"%s\" on line %d", str, LineNo);
+< 	exit(1);
+---
+>     fprintf(stderr, "Syntax Error \"%s\" on line %d in bandwidthd.conf\n", str, LineNo);
+>   syslog(LOG_ERR, "Syntax Error \"%s\" on line %d in bandwidthd.conf", str, LineNo);
+>   exit(1);
+29,31c31,33
+< 	{
+< 	return(1);
+< 	}
+---
+>   {
+>   return(1);
+>   }
+34c36
+< %token TOKJUNK TOKSUBNET TOKDEV TOKSLASH TOKSKIPINTERVALS TOKGRAPHCUTOFF TOKDESCRIPTION
+---
+> %token TOKJUNK TOKSUBNET TOKNOTSUBNET TOKDEV TOKSLASH TOKSKIPINTERVALS TOKGRAPHCUTOFF TOKDESCRIPTION
+56,93c58,97
+< 	subnet
+< 	|
+< 	device
+< 	|
+< 	skip_intervals
+< 	|
+< 	graph_cutoff
+< 	|
+< 	promisc
+< 	|
+< 	extensions
+< 	|
+< 	output_cdf
+< 	|
+< 	recover_cdf
+< 	|
+< 	graph
+< 	|
+< 	newline
+< 	|
+< 	filter
+< 	|
+< 	meta_refresh
+< 	|
+< 	pgsql_connect_string
+< 	|
+< 	sensor_name
+< 	|
+< 	htdocs_dir
+< 	|
+< 	log_dir
+< 	|
+< 	description
+< 	|
+< 	management_url
+< 	|
+< 	sqlite_filename
+< 	;
+---
+>   subnet
+>   |
+>   notsubnet
+>   |
+>   device
+>   |
+>   skip_intervals
+>   |
+>   graph_cutoff
+>   |
+>   promisc
+>   |
+>   extensions
+>   |
+>   output_cdf
+>   |
+>   recover_cdf
+>   |
+>   graph
+>   |
+>   newline
+>   |
+>   filter
+>   |
+>   meta_refresh
+>   |
+>   pgsql_connect_string
+>   |
+>   sensor_name
+>   |
+>   htdocs_dir
+>   |
+>   log_dir
+>   |
+>   description
+>   |
+>   management_url
+>   |
+>   sqlite_filename
+>   ;
+96,99c100,103
+< 	subneta
+< 	|
+< 	subnetb
+< 	;
+---
+>   subneta
+>   |
+>   subnetb
+>   ;
+102,106c106,160
+< 	TOKNEWLINE
+< 	{
+< 	LineNo++;
+< 	}
+< 	;
+---
+>   TOKNEWLINE
+>   {
+>   LineNo++;
+>   }
+>   ;
+> 
+> notsubnet:
+>   notsubneta
+>   |
+>   notsubnetb
+>   ;
+> 
+> notsubneta:
+>   TOKNOTSUBNET IPADDR IPADDR
+>   {
+>   //struct in_addr addr, addr2;
+> 
+>   IgnoreMonitorSubnet(inet_network($2), inet_network($3));
+> 
+>   /*
+>   NotSubnetTable[NotSubnetCount].ip = inet_network($2) & inet_network($3);
+>       NotSubnetTable[NotSubnetCount].mask = inet_network($3);
+> 
+>   addr.s_addr = ntohl(NotSubnetTable[NotSubnetCount].ip);
+>   addr2.s_addr = ntohl(NotSubnetTable[NotSubnetCount++].mask);
+>   syslog(LOG_INFO, "Ignoring subnet %s with netmask %s", inet_ntoa(addr), inet_ntoa(addr2));
+>   */
+>   }
+>   ;
+> 
+> notsubnetb:
+>   TOKNOTSUBNET IPADDR TOKSLASH NUMBER
+>   {
+>   unsigned int Subnet, Counter, Mask;
+>   //struct in_addr addr, addr2;
+> 
+>   Mask = 1; Mask <<= 31;
+>   for (Counter = 0, Subnet = 0; Counter < $4; Counter++)
+>     {
+>     Subnet >>= 1;
+>     Subnet |= Mask;
+>     }
+> 
+>   IgnoreMonitorSubnet(inet_network($2), Subnet);
+> 
+>   /*
+>   NotSubnetTable[NotSubnetCount].mask = Subnet;
+>   NotSubnetTable[NotSubnetCount].ip = inet_network($2) & Subnet;
+>   addr.s_addr = ntohl(NotSubnetTable[NotSubnetCount].ip);
+>   addr2.s_addr = ntohl(NotSubnetTable[NotSubnetCount++].mask);
+>   syslog(LOG_INFO, "Ignoring subnet %s with netmask %s", inet_ntoa(addr), inet_ntoa(addr2));
+>   */
+>   }
+>   ;
+> 
+109,124c163,178
+< 	TOKSUBNET IPADDR IPADDR
+< 	{
+< 	//struct in_addr addr, addr2;
+< 	
+< 	MonitorSubnet(inet_network($2), inet_network($3));
+< 
+< 	/*
+< 	SubnetTable[SubnetCount].ip = inet_network($2) & inet_network($3);
+<     	SubnetTable[SubnetCount].mask = inet_network($3);	
+< 
+< 	addr.s_addr = ntohl(SubnetTable[SubnetCount].ip);
+< 	addr2.s_addr = ntohl(SubnetTable[SubnetCount++].mask);
+< 	syslog(LOG_INFO, "Monitoring subnet %s with netmask %s", inet_ntoa(addr), inet_ntoa(addr2));
+< 	*/
+< 	}
+< 	;
+---
+>   TOKSUBNET IPADDR IPADDR
+>   {
+>   //struct in_addr addr, addr2;
+>   
+>   MonitorSubnet(inet_network($2), inet_network($3));
+> 
+>   /*
+>   SubnetTable[SubnetCount].ip = inet_network($2) & inet_network($3);
+>       SubnetTable[SubnetCount].mask = inet_network($3);  
+> 
+>   addr.s_addr = ntohl(SubnetTable[SubnetCount].ip);
+>   addr2.s_addr = ntohl(SubnetTable[SubnetCount++].mask);
+>   syslog(LOG_INFO, "Monitoring subnet %s with netmask %s", inet_ntoa(addr), inet_ntoa(addr2));
+>   */
+>   }
+>   ;
+127,148c181,202
+< 	TOKSUBNET IPADDR TOKSLASH NUMBER
+< 	{
+< 	unsigned int Subnet, Counter, Mask;
+< 	//struct in_addr addr, addr2;
+< 
+< 	Mask = 1; Mask <<= 31;
+< 	for (Counter = 0, Subnet = 0; Counter < $4; Counter++)
+< 		{
+< 		Subnet >>= 1;
+< 		Subnet |= Mask;
+< 		}
+< 
+< 	MonitorSubnet(inet_network($2), Subnet);
+< 
+< 	/* 	SubnetTable[SubnetCount].mask = Subnet; 
+< 	SubnetTable[SubnetCount].ip = inet_network($2) & Subnet;
+< 	addr.s_addr = ntohl(SubnetTable[SubnetCount].ip);
+< 	addr2.s_addr = ntohl(SubnetTable[SubnetCount++].mask);
+< 	syslog(LOG_INFO, "Monitoring subnet %s with netmask %s", inet_ntoa(addr), inet_ntoa(addr2));
+< 	*/
+< 	}
+< 	;
+---
+>   TOKSUBNET IPADDR TOKSLASH NUMBER
+>   {
+>   unsigned int Subnet, Counter, Mask;
+>   //struct in_addr addr, addr2;
+> 
+>   Mask = 1; Mask <<= 31;
+>   for (Counter = 0, Subnet = 0; Counter < $4; Counter++)
+>     {
+>     Subnet >>= 1;
+>     Subnet |= Mask;
+>     }
+> 
+>   MonitorSubnet(inet_network($2), Subnet);
+> 
+>   /*   SubnetTable[SubnetCount].mask = Subnet; 
+>   SubnetTable[SubnetCount].ip = inet_network($2) & Subnet;
+>   addr.s_addr = ntohl(SubnetTable[SubnetCount].ip);
+>   addr2.s_addr = ntohl(SubnetTable[SubnetCount++].mask);
+>   syslog(LOG_INFO, "Monitoring subnet %s with netmask %s", inet_ntoa(addr), inet_ntoa(addr2));
+>   */
+>   }
+>   ;
+159,163c213,217
+< 	TOKDEV string
+< 	{
+< 	config.dev = $2;
+< 	}
+< 	;
+---
+>   TOKDEV string
+>   {
+>   config.dev = $2;
+>   }
+>   ;
+166,170c220,224
+< 	TOKMANAGEMENTURL string
+< 	{
+< 	config.management_url = $2;
+< 	}
+< 	;
+---
+>   TOKMANAGEMENTURL string
+>   {
+>   config.management_url = $2;
+>   }
+>   ;
+173,177c227,231
+< 	TOKDESCRIPTION string
+< 	{
+< 	config.description = $2;
+< 	}
+< 	;
+---
+>   TOKDESCRIPTION string
+>   {
+>   config.description = $2;
+>   }
+>   ;
+180,184c234,238
+< 	TOKHTDOCSDIR string
+< 	{
+< 	config.htdocs_dir = $2;
+< 	}
+< 	;
+---
+>   TOKHTDOCSDIR string
+>   {
+>   config.htdocs_dir = $2;
+>   }
+>   ;
+187,191c241,245
+< 	TOKLOGDIR string
+< 	{
+< 	config.log_dir = $2;
+< 	}
+< 	;
+---
+>   TOKLOGDIR string
+>   {
+>   config.log_dir = $2;
+>   }
+>   ;
+194,198c248,252
+< 	TOKFILTER string
+< 	{
+< 	config.filter = $2;
+< 	}
+< 	;
+---
+>   TOKFILTER string
+>   {
+>   config.filter = $2;
+>   }
+>   ;
+201,205c255,259
+< 	TOKMETAREFRESH NUMBER
+< 	{
+< 	config.meta_refresh = $2;
+< 	}
+< 	;
+---
+>   TOKMETAREFRESH NUMBER
+>   {
+>   config.meta_refresh = $2;
+>   }
+>   ;
+208,212c262,266
+< 	TOKSKIPINTERVALS NUMBER
+< 	{
+< 	config.skip_intervals = $2+1;
+< 	}
+< 	;
+---
+>   TOKSKIPINTERVALS NUMBER
+>   {
+>   config.skip_intervals = $2+1;
+>   }
+>   ;
+215,219c269,273
+< 	TOKGRAPHCUTOFF NUMBER
+< 	{
+< 	config.graph_cutoff = $2*1024;
+< 	}
+< 	;
+---
+>   TOKGRAPHCUTOFF NUMBER
+>   {
+>   config.graph_cutoff = $2*1024;
+>   }
+>   ;
+222,226c276,280
+< 	TOKPROMISC STATE
+< 	{
+< 	config.promisc = $2;
+< 	}
+< 	;
+---
+>   TOKPROMISC STATE
+>   {
+>   config.promisc = $2;
+>   }
+>   ;
+229,233c283,287
+< 	TOKEXTENSIONS STATE
+< 	{
+< 	config.extensions = $2;
+< 	}
+< 	;
+---
+>   TOKEXTENSIONS STATE
+>   {
+>   config.extensions = $2;
+>   }
+>   ;
+236,240c290,294
+< 	TOKOUTPUTCDF STATE
+< 	{
+< 	config.output_cdf = $2;
+< 	}
+< 	;
+---
+>   TOKOUTPUTCDF STATE
+>   {
+>   config.output_cdf = $2;
+>   }
+>   ;
+243,247c297,301
+< 	TOKRECOVERCDF STATE
+< 	{
+< 	config.recover_cdf = $2;
+< 	}
+< 	;
+---
+>   TOKRECOVERCDF STATE
+>   {
+>   config.recover_cdf = $2;
+>   }
+>   ;
+250,254c304,308
+< 	TOKGRAPH STATE
+< 	{
+< 	config.graph = $2;
+< 	}
+< 	;
+---
+>   TOKGRAPH STATE
+>   {
+>   config.graph = $2;
+>   }
+>   ;
+260c314
+< 	config.output_database = DB_PGSQL;
+---
+>   config.output_database = DB_PGSQL;
+265,270c319,324
+< 	TOKSQLITEFILENAME string
+< 	{
+< 	config.db_connect_string = $2;
+< 	config.output_database = DB_SQLITE;
+< 	}
+< 	;
+---
+>   TOKSQLITEFILENAME string
+>   {
+>   config.db_connect_string = $2;
+>   config.output_database = DB_SQLITE;
+>   }
+>   ;
+diff -r /home/perkins/Source/wrk/bandwidthd/configure.in ./configure.in
+10,11c10,11
+< RELEASE_VERSION=0
+< EXTRA_VERSION=""
+---
+> RELEASE_VERSION=2
+> EXTRA_VERSION=".IPv6"
+20a21,44
+> 
+> 
+> use_pgsql=no
+> AC_PATH_PROG(PG_CONFIG, pg_config)
+> 
+> 
+> if test x$enable_pgsql = xyes ; then
+>   if test "x$PG_CONFIG" = "x" ; then
+>     echo "*** Couldn't find pg_config. Disabling PostgreSQL support."
+>   else
+>     LDFLAGS="$LDFLAGS -L`$PG_CONFIG --libdir` -lpq"
+> 
+>     pgsql_cflags=`$PG_CONFIG --includedir`
+>     if test "x$pgsql_cflags" != "x/usr/include" ; then
+>       CPPFLAGS="$CPPFLAGS -I$pgsql_cflags"
+>     fi
+>      
+>     use_pgsql=yes
+>     AC_DEFINE(HAVE_LIBPQ, 1, "Enable PostgreSQL compiletime option")
+>   fi
+> fi
+> 
+> 
+> 
+137a162,227
+> 
+> AC_ARG_ENABLE([pgsql], AC_HELP_STRING([--enable-pgsql],
+> 	[Enable PostgreSQL support. Default is yes, if available.]),
+> 	enable_pgsql="$enableval", enable_pgsql=yes)
+> 
+> 
+> 
+> AC_ARG_ENABLE([python], AC_HELP_STRING([--enable-python],
+> 	[Enable Python support. Default is yes, if available.]),
+> 	enable_python="$enableval", enable_python=yes)
+> 
+> HAVEPYTHON=0
+> if test $enable_python != "no" ; then
+> 	if test -n HAVEPYTHON && test `which python2.7-config` != "" ; then
+> 		PYTHON=`which python2.7`
+> 		LDFLAGS="$LDFLAGS `python2.7-config --libs`"
+> 		CPPFLAGS="$CPPFLAGS `python2.7-config --includes`"
+> 		PYTHON_VERSION="2.7"
+> 		HAVEPYTHON=1
+> 		echo "checking for python2.7... yes"
+> 	else
+> 		echo "checking for python2.7... no"
+> 		if test -n HAVEPYTHON && test `which python2.6-config` != "" ; then
+> 			PYTHON=`which python2.6`
+> 			LDFLAGS="$LDFLAGS `python2.6-config --libs`"
+> 			CPPFLAGS="$CPPFLAGS `python2.6-config --includes`"
+> 			PYTHON_VERSION="2.6"
+> 			HAVEPYTHON=1
+> 			echo echo "checking for python2.6... yes"
+> 		else
+> 			echo "checking for python2.6... no"
+> 	
+> 			if test -n HAVEPYTHON && test `which python2.5-config` != "" ; then
+> 				PYTHON=`which python2.5`
+> 				LDFLAGS="$LDFLAGS `python5-config --libs`"
+> 				CPPFLAGS="$CPPFLAGS `python5-config --includes`"
+> 				PYTHON_VERSION="2.5"
+> 				HAVEPYTHON=1
+> 				echo echo "checking for python2.5... yes"
+> 			else
+> 				echo "checking for python2.5... no"
+> 	
+> 				if test -n HAVEPYTHON && test `which python-config` != "" ; then
+> 					PYTHON=`which python`
+> 					LDFLAGS="$LDFLAGS `python-config --libs`"
+> 					CPPFLAGS="$CPPFLAGS `python-config --includes`"
+> 					PYTHON_VERSION=`$PYTHON -c "import sys; \
+> 									print sys.version[[:3]]"`
+> 					HAVEPYTHON=1
+> 					echo "checking for python... $PYTHON_VERSION"
+> 					AC_MSG_WARN([Python version not supported, but using anyway])
+> 				else
+> 					echo "checking for python... no"
+> 				fi
+> 			fi
+> 		fi
+> 	fi
+> fi
+> 
+> 
+> if test "$HAVEPYTHON" = "1" ; then
+> 	AC_DEFINE_UNQUOTED(HAVE_PYTHON, 1, "Enable Python compiletime option")
+> 	AC_DEFINE_UNQUOTED(PYTHON_VERSION, $PYTHON_VERSION, "Set version of python")
+> fi
+> 
+> 
+Only in ./etc: .svn
+Only in ./etc/CVS: .svn
+Only in ./extensions: .svn
+Only in ./extensions/CVS: .svn
+Only in ./htdocs: .svn
+Only in ./htdocs/CVS: .svn
+diff -r /home/perkins/Source/wrk/bandwidthd/pgsql.c ./pgsql.c
+5a6
+> extern struct Broadcast *Broadcasts;
+34c35
+< 		res = PQexec(conn,	"CREATE TABLE bd_rx_log (sensor_id int, ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_rx_log_sensor_id_ip_timestamp_idx on bd_rx_log (sensor_id, ip, timestamp); create index bd_rx_log_sensor_id_timestamp_idx on bd_rx_log(sensor_id, timestamp);");
+---
+> 		res = PQexec(conn,  "CREATE TABLE bd_rx_log (sensor_id int,mac character varying(20), ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_rx_log_sensor_id_ip_timestamp_idx on bd_rx_log (sensor_id, ip, timestamp); create index bd_rx_log_sensor_id_timestamp_idx on bd_rx_log(sensor_id, timestamp);");
+44c45
+< 		res = PQexec(conn, "CREATE TABLE bd_tx_log (sensor_id int, ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_tx_log_sensor_id_ip_timestamp_idx on bd_tx_log (sensor_id, ip, timestamp); create index bd_tx_log_sensor_id_timestamp_idx on bd_tx_log(sensor_id, timestamp);");
+---
+> 		res = PQexec(conn, "CREATE TABLE bd_tx_log (sensor_id int,mac character varying(20), ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_tx_log_sensor_id_ip_timestamp_idx on bd_tx_log (sensor_id, ip, timestamp); create index bd_tx_log_sensor_id_timestamp_idx on bd_tx_log(sensor_id, timestamp);");
+54c55
+< 		res = PQexec(conn, "CREATE TABLE bd_rx_total_log (sensor_id int, ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_rx_total_log_sensor_id_timestamp_ip_idx on bd_rx_total_log (sensor_id, timestamp);");
+---
+> 		res = PQexec(conn, "CREATE TABLE bd_rx_total_log (sensor_id int,mac character varying(20), ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_rx_total_log_sensor_id_timestamp_ip_idx on bd_rx_total_log (sensor_id, timestamp);");
+64c65
+< 		res = PQexec(conn, "CREATE TABLE bd_tx_total_log (sensor_id int, ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_tx_total_log_sensor_id_timestamp_ip_idx on bd_tx_total_log (sensor_id, timestamp);");
+---
+> 		res = PQexec(conn, "CREATE TABLE bd_tx_total_log (sensor_id int,mac character varying(20), ip inet, timestamp timestamp with time zone DEFAULT now(), sample_duration int, packet_count int, total int, icmp int, udp int, tcp int, ftp int, http int, mail int, p2p int); create index bd_tx_total_log_sensor_id_timestamp_ip_idx on bd_tx_total_log (sensor_id, timestamp);");
+83a85,93
+> 		res = PQexec(conn, "CREATE TABLE links (id1 int, id2 int, plot boolean default TRUE, last_update timestamp with time zone);");
+> 		if (PQresultStatus(res) != PGRES_COMMAND_OK)
+> 			{
+> 			syslog(LOG_ERR, "Postresql create table links failed: %s", PQerrorMessage(conn));
+> 			PQclear(res);
+> 			PQfinish(conn);
+> 			return(NULL);
+> 			}
+> 		PQclear(res);
+105c115
+< 			res = PQexec(conn,	"alter table bd_rx_log add column mail int;");
+---
+> 			res = PQexec(conn,  "alter table bd_rx_log add column mail int;");
+115c125
+< 			res = PQexec(conn,	"alter table bd_tx_log add column mail int;");
+---
+> 			res = PQexec(conn,  "alter table bd_tx_log add column mail int;");
+125c135
+< 			res = PQexec(conn,	"alter table bd_rx_total_log add column mail int;");
+---
+> 			res = PQexec(conn,  "alter table bd_rx_total_log add column mail int;");
+135c145,203
+< 			res = PQexec(conn,	"alter table bd_tx_total_log add column mail int;");
+---
+> 			res = PQexec(conn,  "alter table bd_tx_total_log add column mail int;");
+> 			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+> 				{
+> 				syslog(LOG_ERR, "Add column failed: %s", PQerrorMessage(conn));
+> 				PQclear(res);
+> 				PQfinish(conn);
+> 				return(NULL);
+> 				}
+> 			PQclear(res);
+> 			}
+> 		else
+> 			{
+> 			PQclear(res);
+> 			}
+> 		res = PQexec(conn, "SELECT table_name, column_name from information_schema.columns where table_name = 'bd_rx_log' and column_name = 'mac';");
+> 
+> 		if (PQresultStatus(res) != PGRES_TUPLES_OK)
+> 			{
+> 			syslog(LOG_ERR, "Postresql Select failed: %s", PQerrorMessage(conn));
+> 			PQclear(res);
+> 			PQfinish(conn);
+> 			return(NULL);
+> 			}
+> 
+> 		if (PQntuples(res) != 1)
+> 			{
+> 			PQclear(res);
+> 
+> 			res = PQexec(conn,  "alter table bd_rx_log add column mac character varying(20);");
+> 			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+> 				{
+> 				syslog(LOG_ERR, "Add column failed: %s", PQerrorMessage(conn));
+> 				PQclear(res);
+> 				PQfinish(conn);
+> 				return(NULL);
+> 				}
+> 			PQclear(res);
+> 
+> 			res = PQexec(conn,  "alter table bd_tx_log add column mac character varying(20);");
+> 			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+> 				{
+> 				syslog(LOG_ERR, "Add column failed: %s", PQerrorMessage(conn));
+> 				PQclear(res);
+> 				PQfinish(conn);
+> 				return(NULL);
+> 				}
+> 			PQclear(res);
+> 
+> 			res = PQexec(conn,  "alter table bd_rx_total_log add column mac character varying(20);");
+> 			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+> 				{
+> 				syslog(LOG_ERR, "Add column failed: %s", PQerrorMessage(conn));
+> 				PQclear(res);
+> 				PQfinish(conn);
+> 				return(NULL);
+> 				}
+> 			PQclear(res);
+> 
+> 			res = PQexec(conn,  "alter table bd_tx_total_log add column mac character varying(20);");
+183,184c251,252
+< 		2,		 /* number of params */
+< 		NULL,	 /* let the backend deduce param type */
+---
+> 		2,       /* number of params */
+> 		NULL,    /* let the backend deduce param type */
+186,188c254,256
+< 		NULL,	 /* don't need param lengths since text */
+< 		NULL,	 /* default to all text params */
+< 		0);		 /* ask for binary results */
+---
+> 		NULL,    /* don't need param lengths since text */
+> 		NULL,    /* default to all text params */
+> 		0);      /* ask for binary results */
+216c284
+< 																															 
+---
+> 																															
+238,239c306,307
+< 		3,		 /* number of parameters */
+< 		NULL,	 /* let the backend deduce param type */
+---
+> 		3,       /* number of parameters */
+> 		NULL,    /* let the backend deduce param type */
+241,243c309,311
+< 		NULL,	 /* don't need param lengths since text */
+< 		NULL,	 /* default to all text params */
+< 		0);		 /* ask for binary results */
+---
+> 		NULL,    /* don't need param lengths since text */
+> 		NULL,    /* default to all text params */
+> 		0);      /* ask for binary results */
+258a327,402
+> PGconn *pgsqlUpdateLinkStatus(PGconn *conn, char *sensor_id)
+> 	{
+> 	struct Broadcast *bc;
+> 	unsigned long diff;
+> 	const char *paramValues[3];
+> 	char Values[3][MAX_PARAM_SIZE];
+> 	PGresult   *res;
+> 						
+> 	paramValues[0] = Values[0];
+> 	paramValues[1] = Values[1];
+> 	paramValues[2] = Values[2];
+> 
+> 	for (bc = Broadcasts; bc; bc = bc->next)
+> 		{
+> 		strncpy(Values[0], sensor_id, MAX_PARAM_SIZE);
+> 		// Determine numeric sensor ID of other sensor
+> 		if (!(conn = pgsqlDetermineSensorID(conn, Values[1], bc->sensor_name, bc->interface)))
+> 			return(NULL);		
+> 		
+> 		if (!Values[1][0])
+> 			{
+> 			syslog(LOG_ERR, "Sensor '%s - %s' does not exist in database, skiping link update", bc->sensor_name, bc->interface);
+> 			continue;
+> 			}
+> 
+> 		diff = time(NULL) - bc->received;
+> 		snprintf(Values[2], MAX_PARAM_SIZE, "%lu", diff);
+> 		res = PQexecParams(conn, "update links set last_update = now()-($3*interval '1 second') where (id1 = $1 and id2 = $2) or (id1 = $2 and id2 = $1);",
+> 				3,       /* number of parameters */
+> 				NULL,    /* let the backend deduce param type */
+> 				paramValues,
+> 				NULL,    /* don't need param lengths since text */
+> 				NULL,    /* default to all text params */
+> 				0);      /* ask for binary results */
+> 
+> 		if (PQresultStatus(res) != PGRES_COMMAND_OK)
+> 			{
+> 			syslog(LOG_ERR, "Postresql Update of links table failed: %s", PQerrorMessage(conn));
+> 			PQclear(res);
+> 			PQfinish(conn);
+> 			return(NULL);
+> 			}
+> 		
+> 		// There may be duplicate rows
+> 		if (atol(PQcmdTuples(res)) > 0) 
+> 			{
+> 			PQclear(res); // Sucess, allow loop to fall through
+> 			}
+> 		else
+> 			{
+> 			PQclear(res);
+> 			
+> 			// Link doesn't exist so we must add it
+> 			diff = time(NULL) - bc->received;
+> 			snprintf(Values[2], MAX_PARAM_SIZE, "%lu", diff);
+> 			res = PQexecParams(conn, "insert into links (id1, id2, last_update) values ($1, $2, now()-($3*interval '1 second'));",
+> 					3,       /* number of parameters */
+> 					NULL,    /* let the backend deduce param type */
+> 					paramValues,
+> 					NULL,    /* don't need param lengths since text */
+> 					NULL,    /* default to all text params */
+> 					0);      /* ask for binary results */
+> 
+> 			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+> 				{
+> 				syslog(LOG_ERR, "Postresql Insert into links table failed: %s", PQerrorMessage(conn));
+> 				PQclear(res);
+> 				PQfinish(conn);
+> 				return(NULL);
+> 				}
+> 			PQclear(res);
+> 			}
+> 		}
+> 	return(conn);
+> 	}
+> 
+277,278c421,422
+< 			5,		 /* number of parameters */
+< 			NULL,	 /* let the backend deduce param type */
+---
+> 			5,       /* number of parameters */
+> 			NULL,    /* let the backend deduce param type */
+280,282c424,426
+< 			NULL,	 /* don't need param lengths since text */
+< 			NULL,	 /* default to all text params */
+< 			0);		 /* ask for binary results */
+---
+> 			NULL,    /* don't need param lengths since text */
+> 			NULL,    /* default to all text params */
+> 			0);      /* ask for binary results */
+308,309c452,453
+< 			1,		 /* number of parameters */
+< 			NULL,	 /* let the backend deduce param type */
+---
+> 			1,       /* number of parameters */
+> 			NULL,    /* let the backend deduce param type */
+311,313c455,457
+< 			NULL,	 /* don't need param lengths since text */
+< 			NULL,	 /* default to all text params */
+< 			0);		 /* ask for binary results */
+---
+> 			NULL,    /* don't need param lengths since text */
+> 			NULL,    /* default to all text params */
+> 			0);      /* ask for binary results */
+351c495
+< 	char Values[13][MAX_PARAM_SIZE];
+---
+> 	char Values[14][MAX_PARAM_SIZE];
+369a514
+> 	paramValues[13] = Values[13];
+460a606,612
+> 	// Update link state
+> 	if (!(conn = pgsqlUpdateLinkStatus(conn, sensor_id)))
+> 		{
+> 		syslog(LOG_ERR, "Count not update link status");
+> 		_exit(2);
+> 		}
+> 
+463,464c615,616
+< 		0,		 /* number of params */
+< 		NULL,	 /* let the backend deduce param type */
+---
+> 		0,       /* number of params */
+> 		NULL,    /* let the backend deduce param type */
+466,468c618,620
+< 		NULL,	 /* don't need param lengths since text */
+< 		NULL,	 /* default to all text params */
+< 		0);		 /* ask for binary results */
+---
+> 		NULL,    /* don't need param lengths since text */
+> 		NULL,    /* default to all text params */
+> 		0);      /* ask for binary results */
+494,495c646,647
+< 			sql1 = "INSERT INTO bd_tx_total_log (sensor_id, timestamp, sample_duration, ip, packet_count,total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);";
+< 			sql2 = "INSERT INTO bd_rx_total_log (sensor_id, timestamp, sample_duration, ip, packet_count,total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);";
+---
+> 			sql1 = "INSERT INTO bd_tx_total_log (sensor_id, timestamp, sample_duration, mac, ip, packet_count,total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14);";
+> 			sql2 = "INSERT INTO bd_rx_total_log (sensor_id, timestamp, sample_duration, mac, ip, packet_count,total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14);";
+499,500c651,652
+< 			sql1 = "INSERT INTO bd_tx_log (sensor_id, timestamp, sample_duration, ip, packet_count, total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);";
+< 			sql2 = "INSERT INTO bd_rx_log (sensor_id, timestamp, sample_duration, ip, packet_count, total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);"; 
+---
+> 			sql1 = "INSERT INTO bd_tx_log (sensor_id, timestamp, sample_duration, mac, ip, packet_count, total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14);";
+> 			sql2 = "INSERT INTO bd_rx_log (sensor_id, timestamp, sample_duration, mac, ip, packet_count, total, icmp, udp, tcp, ftp, http, mail, p2p) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14);";
+501a654
+> 		snprintf(Values[3], MAX_PARAM_SIZE, "%s", IPData->mac[0]);
+503c656
+< 		HostIp2CharIp(IPData->ip, Values[3]);
+---
+> 		HostIp2CharIp(IPData->ip, Values[4]);
+509,517c662,670
+< 			snprintf(Values[4], MAX_PARAM_SIZE, "%llu", Stats->packet_count);
+< 			snprintf(Values[5], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->total)/1024.0) + 0.5));
+< 			snprintf(Values[6], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->icmp)/1024.0) + 0.5));
+< 			snprintf(Values[7], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->udp)/1024.0) + 0.5));
+< 			snprintf(Values[8], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->tcp)/1024.0) + 0.5));
+< 			snprintf(Values[9], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->ftp)/1024.0) + 0.5));
+< 			snprintf(Values[10], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->http)/1024.0) + 0.5));
+< 			snprintf(Values[11], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->mail)/1024.0) + 0.5));
+< 			snprintf(Values[12], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->p2p)/1024.0) + 0.5));
+---
+> 			snprintf(Values[5], MAX_PARAM_SIZE, "%llu", Stats->packet_count);
+> 			snprintf(Values[6], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->total)/1024.0) + 0.5));
+> 			snprintf(Values[7], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->icmp)/1024.0) + 0.5));
+> 			snprintf(Values[8], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->udp)/1024.0) + 0.5));
+> 			snprintf(Values[9], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->tcp)/1024.0) + 0.5));
+> 			snprintf(Values[10], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->ftp)/1024.0) + 0.5));
+> 			snprintf(Values[11], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->http)/1024.0) + 0.5));
+> 			snprintf(Values[12], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->mail)/1024.0) + 0.5));
+> 			snprintf(Values[13], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->p2p)/1024.0) + 0.5));
+520,521c673,674
+< 				13,		  
+< 				NULL,	 /* let the backend deduce param type */
+---
+> 				14,       
+> 				NULL,    /* let the backend deduce param type */
+523,525c676,678
+< 				NULL,	 /* don't need param lengths since text */
+< 				NULL,	 /* default to all text params */
+< 				1);		 /* ask for binary results */
+---
+> 				NULL,    /* don't need param lengths since text */
+> 				NULL,    /* default to all text params */
+> 				1);      /* ask for binary results */
+540,548c693,701
+< 			snprintf(Values[4], MAX_PARAM_SIZE, "%llu", Stats->packet_count);
+< 			snprintf(Values[5], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->total)/1024.0) + 0.5));
+< 			snprintf(Values[6], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->icmp)/1024.0) + 0.5));
+< 			snprintf(Values[7], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->udp)/1024.0) + 0.5));
+< 			snprintf(Values[8], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->tcp)/1024.0) + 0.5));
+< 			snprintf(Values[9], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->ftp)/1024.0) + 0.5));
+< 			snprintf(Values[10], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->http)/1024.0) + 0.5));
+< 			snprintf(Values[11], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->mail)/1024.0) + 0.5));
+< 			snprintf(Values[12], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->p2p)/1024.0) + 0.5));
+---
+> 			snprintf(Values[5], MAX_PARAM_SIZE, "%llu", Stats->packet_count);
+> 			snprintf(Values[6], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->total)/1024.0) + 0.5));
+> 			snprintf(Values[7], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->icmp)/1024.0) + 0.5));
+> 			snprintf(Values[8], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->udp)/1024.0) + 0.5));
+> 			snprintf(Values[9], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->tcp)/1024.0) + 0.5));
+> 			snprintf(Values[10], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->ftp)/1024.0) + 0.5));
+> 			snprintf(Values[11], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->http)/1024.0) + 0.5));
+> 			snprintf(Values[12], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->mail)/1024.0) + 0.5));
+> 			snprintf(Values[13], MAX_PARAM_SIZE, "%llu", (long long unsigned int)((((double)Stats->p2p)/1024.0) + 0.5));
+551,552c704,705
+< 				13,		  
+< 				NULL,	 /* let the backend deduce param type */
+---
+> 				14,       
+> 				NULL,    /* let the backend deduce param type */
+554,556c707,709
+< 				NULL,	 /* don't need param lengths since text */
+< 				NULL,	 /* default to all text params */
+< 				1);		 /* ask for binary results */
+---
+> 				NULL,    /* don't need param lengths since text */
+> 				NULL,    /* default to all text params */
+> 				1);      /* ask for binary results */
+567c720
+< 			}		
+---
+> 			}
+620,621c773,774
+< 			fields+2,		
+< 			NULL,	 /* let the backend deduce param type */
+---
+> 			fields+2,       
+> 			NULL,    /* let the backend deduce param type */
+623,625c776,778
+< 			NULL,	 /* don't need param lengths since text */
+< 			NULL,	 /* default to all text params */
+< 			1);		 /* ask for binary results */
+---
+> 			NULL,    /* don't need param lengths since text */
+> 			NULL,    /* default to all text params */
+> 			1);      /* ask for binary results */
+Only in ./phphtdocs: .svn
+Only in ./phphtdocs/CVS: .svn
+Only in ./phphtdocs/manage: .svn
+Only in ./phphtdocs/manage/CVS: .svn
+Only in /home/perkins/Source/wrk/bandwidthd: sqlight.c
+Only in .: sqlite.c

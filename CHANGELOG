@@ -1,0 +1,179 @@
+2.0.2.IPv6
+
+Added support for mac addresses in sqlite.
+Renamed sqlight.c to sqlite.c
+
+Added second param to IPTableTransform.main for the name of the sensor in use.
+Included sample IPTableTransform.py that outputs to a mysql DB
+Changed name of python module from LookupMac to IPTableTransform
+Fixed bug in pgsql.c where it was passing the mac address to HostIp2CharIp instead of the IP address (pgsql.c)
+Fixed bug in pgsql.c where it was passing the wrong number of parameters to PQexecParams (pgsql.c)
+Added support for excluding subnets. (conf.l conf.y)
+Added mac record support for pgsql. (pgsql.c)
+
+Cleaned up whitespace (bandwidthd.c)
+Moved global variables from top of bandwidthd.c to bandwidthd.h 
+	(help avoid namespace collisions if someone only looks in the header file)
+Added struct for vlan headers (bandwidthd.h)
+Added configure option for turning pgsql off (configure.in)
+Added functions for ignoring subnets (bandwidthd.c)
+Added configure option for embedding python for scripting and to optimize ip lookups (bandwidthd.c bandwidthd.h configure.in)
+
+
+2.0.1
+
+Make file tweaks
+Add Support for SQLight database
+Adhere more strictly to GNU coding standards for directories
+Optional htdocs and log file locations specified at configure time
+Optional bandwidthd.conf entries to specify htdocs and log file locations
+Command line option help
+Command line option for specifying a bandwidthd.conf file
+Changed signal handling to avoid the parent thread dying from a hup during 
+	CDF recovery
+Fixed bug that could cause segfault if no devices exist that can be captured
+	from and no device is specified in the bandwidthd.conf
+Fixed bug in CDF recovery that may have been affecting recovery on FreeBSD systems.
+
+2.0.1 
+Big Feature - Added optional postgresql database logging mode and php for dynamic graph creation from 
+	databases.  Great for big sites,  multiple sensors with very low overhead collect traffic statistics
+	and log them to database.  Graphs are created when a user visits the page instead of burning CPU
+	cycles night and day.  Logging/Multiple sensor support is completed.  
+Big Feature - Implemented auto conf
+	Ported to and compiles on:
+	ix86 Fedora Core 2
+	ix86 Solaris 9
+	ix86 OpenBSD 3.4
+	ix86 Debian 2.2
+	ix86 FreeBSD 4.8
+	AMD64 Fedora Core 3
+	PPC MaxOsX 10.2
+	ix86 Microsoft Windows
+Changed default interval to 200 seconds to save ram and cpu power
+Huge performance gain in graphing engine due to bug fix (Peak Send and Total Sent strings font
+	operations were being done to each graphic almost 1000 times instead of just 1)
+Removed need of Sys V IPC shared memeory
+log rotation on all logs implemented - secondary logs rotate every RANGE?/RANGE1 HUP's
+Added syslog support, removed all printf's except a few early errors, closed 
+	stdin, stdout, and stderr before beginning capture loop
+Bandwidthd collects the pids of it's children and distributes HUP and TERM signals when issued
+	to the first process
+Changed yy parser name to bdconfig_ to avoid a bug in BSD
+Added some semi-colons to conf.y to fix BSD flex/bison compatability bug
+Fixed bug that caused memory corruption when ram datastore had data on more than IP_NUM ips.
+Fixed some longs that missed being converted to unsigned long long.
+Fixed bug in CDF recovery that would cause bandwidthd to ignore some CDF logs during recovery
+Bandwidthd now checks for ./etc/bandwidthd.conf, and if it doesn't exist it checks for 
+	/usr/local/bandwidthd/etc/bandwidthd.conf, if that exists it will chdir("/usr/local/bandwidthd")
+Fixed problem that caused bandwidthd to sit and never create graphs
+if graph is set to false do not store data in ram, do not fork unless output_cdf is true
+log names changed to be consistent so all logs could be rotated with same function
+
+1.2.1b
+Reduced Loading spam
+Added filter option to bandwidhtd.conf to specify libpcap filter
+Fixed problems with YAxis labeling and scaling on high volume networks
+Skips starting a new graphing run if the last run is still going to prevent
+	fork bomb style box crashes
+Exits on a configuration error
+Print out line number of errors in bandwidthd.conf
+Caused graph_cutoff to be scaled with time range to reduce load induced by
+	weekly/monthly/yearly graphs
+Fixed bad documentation
+
+1.2.0
+10,000 downloads edition! :)
+Added Weekly, Monthly, and yearly graphs!
+Bandwidthd will now do a graph run immediatly after loading it's data
+New 10 Minute (log2.cdf), 1 hour (log3.cdf), and 12 hour (log4.cdf) interval log files
+Graphing code now scales better with different custom intervals and periods
+
+1.1.8b
+Fixed bug in support for linux cooked socket DLT_LINUX_SLL (PPPOE, T1, etc) - Christian Laubscher
+
+1.1.8
+Wrapped DLT_EN10MB in an ifdef for platforms that don't supply it
+Fixed bandwidthd crashing when brought up on an ip addressless interface
+Fixed segfault in DropOldData discovered by Hannes Reich
+Fixed some errors in Makefile, preserved bandwidthd.conf - Bob Toxen
+Detected https as http - Bob Toxen
+Fixed bug that would cause "killall -HUP bandwidthd" to kill the graphing process
+Initial support for datalink type 12 DLT_RAW 
+Initial support for datalink type 6 token ring DLT_IEEE802
+
+1.1.7
+Compiles clean on BSD - Colin Harford - Sheepkiller
+
+1.1.6
+Updated Documentation
+Fixed Segmentation fault in DropOldData, also pointed out by Hannes Reich
+Modified RecoverCdf to load files from the rotation
+Added log rotation
+Modifed RecoverCdf to load large log files much faster
+Added code by Hannes Reich which loads the contents of the log file back into
+bandwidthd on restart, so data is persistant between restarts.
+Alan Evens replaced my bugged sort algorithm with one of his own, fixing the
+long standing sort issue.
+
+1.1.5
+Fixed DLT_LINUX_SLL undefined compile bug by wrapping it in an #ifdef
+Added date/time to top of html output
+Added ftp track based on "ftp-data" port numbers
+Added alternating light blue background to stats table and centered 
+column headers
+Modified stat table so everything lines up and it's easy to read at 
+low res - Alan Evens
+
+1.1.4
+added totals graph
+Added support for linux cooked sockets, allowing the monitoring of many
+ppp interfaces and T1's.
+csv logging made much more usefull, now actually logs the throughput for each
+interval, not the total acumulated so far.
+check for ./htdocs and ./etc/bandwidthd.conf so new people don't get confused
+when they don't run bandwidthd from it's directory.
+reap zombies every interval, just not when we don't skip.
+updated documentation
+
+1.1.3
+Makefile was broken, bandwidthd could only compile under solaris
+
+1.1.2
+Added new logo
+Increased sample size to 100 bytes in order to avoid future bugs resulting 
+from trying to categorise by information in the tcp header when ip options
+are present.
+Source now compiles and works under Solaris with gcc :) 
+
+1.1.1
+Fixed a bug that caused web and p2p counters not to increment when ip options
+are present in the packets.
+Was only capturing 34 bytes of packets instead of 54, http and p2p weren't 
+being incremented because the tcp header was not captured.  Older versions
+of libpcap must have returned full headers regardless of pcap size.
+
+1.1.0
+Added a logo.gif to the package
+Added "skip_intervals" option to the config file  
+Added "graph_cutoff" option to the config file
+Added "promiscuous" option to the config file (Allows graphing of traffic not routed through the host)
+Changed default to promiscuous
+Added "output_cdf" option to the config file (Logs bandwidthd data to comma deliminated file)
+Added "graph" option to the config file (Set to false to suppress drawing of the graphs)
+When IpCount (Number of ip's being tracked) exceed IP_NUM (Max number of IP's) stop tracking new ip's instead of exiting
+Added legend to graphs
+Added CHANGELOG
+Updated Documentation
+Added credits to bottom of top20 web page
+
+1.0.0
+Changed all statistics storage to type "long long" to avoid roll over
+Updated documentation
+Added "make dist-clean" to force rebuild of flex and bison output
+Modifed make file to allow building without flex and bison
+Removed some debugging macros that wouldn't compile under old versions of gcc
+Modifed RDNS code to complain less and use longjump less
+
+0.46
+Initial public release

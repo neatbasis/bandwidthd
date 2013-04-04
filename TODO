@@ -1,0 +1,26 @@
+Add struct for storing IPv6 information
+Make IP information use a linked list
+Add mac record support to cdf
+Add support for multiple sensors using the python DBAPI
+
+OLD PROJECT TODO (will still get done)
+
+Move output modules to forked section
+Config switches for sample intervals and graphing ranges
+
+# Features requested by people, I make a note of them here in case myself
+# or someone else wants to come along and implement them.
+Stoilis:
+List of IP's to exclude from the page
+Switch to hide all ip addresses
+
+Me:
+Switch to only graph traffic not to and from the local network (internet
+	traffic only)
+
+Change ram datastore:  Linked lists with identifiers that store only non-zero traffic, use
+	longs for traffic storage instead of long longs and implement a multiplyer field.
+	will allow implementation of custom ports to graph and reduce ram usage by 70%ish
+
+
+

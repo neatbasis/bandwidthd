@@ -1,0 +1,71 @@
+.body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    color: #333333;
+}
+                                                                                                                             
+h3 {
+    font-family: Verdana, Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+    color: #2A337E;
+    border: solid 1px #666666;
+    padding: 2px;
+    background-color: #c0c0c0;
+}
+th {
+    font-family: verdana;
+    font-size: 10px;
+    background-color: #c0c0c0;
+    color: #333333;
+    align: center;
+    cell-spacing: 0px;
+}
+.row-header-left {
+    border-left: solid 1px #666666;
+    border-top: solid 1px #666666;
+    border-bottom: solid 1px #666666;
+    line-height: 9px;
+    padding: 2px;
+}
+.row-header-middle {
+        border-top: solid 1px #666666;
+        border-bottom: solid 1px #666666;
+    line-height: 9px;
+    padding: 2px;
+}
+.row-header-right {
+        border-right: solid 1px #666666;
+        border-top: solid 1px #666666;
+        border-bottom: solid 1px #666666;
+    line-height: 9px;
+    padding: 2px;
+                                                                                                                             
+}
+a.text-button:link, a.text-button:visited {
+    font-family: verdana;
+    font-size: 10px;
+    font-weight: bold;
+    color: #2A337E;
+    text-decoration: none;
+    background-color: #F6F6F6;
+    border: solid 1px #666666;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    padding-left: 5px;
+    padding-right: 5px;
+    margin-top: 10px;
+}
+a.text-button:hover {
+        font-family: verdana;
+        font-size: 10px;
+        font-weight: bold;
+        color: #ffffff;
+        text-decoration: none;
+        background-color: #828DBA;
+        border: solid 1px #666666;
+        padding-top: 1px;
+        padding-bottom: 1px;
+        padding-left: 5px;
+        padding-right: 5px;
+}

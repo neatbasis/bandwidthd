@@ -1,0 +1,4 @@
+echo "vacuum ANALYZE sensors;"
+echo "vacuum analyze links;"
+echo "delete from extension_log where timestamp < now()-interval '1 hour';"
+echo "vacuum analyze extension_log;"

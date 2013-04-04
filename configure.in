@@ -1,0 +1,228 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT
+AC_CANONICAL_HOST
+
+AC_CONFIG_SRCDIR([bandwidthd.c])
+AC_CONFIG_HEADER([config.h])
+
+MAJOR_VERSION=2
+MINOR_VERSION=0
+RELEASE_VERSION=2
+EXTRA_VERSION=".IPv6"
+VERSION="$MAJOR_VERSION.$MINOR_VERSION.$RELEASE_VERSION$EXTRA_VERSION"
+
+# Checks for programs.
+AC_PROG_YACC
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_LEX
+
+
+
+
+use_pgsql=no
+AC_PATH_PROG(PG_CONFIG, pg_config)
+
+
+if test x$enable_pgsql = xyes ; then
+  if test "x$PG_CONFIG" = "x" ; then
+    echo "*** Couldn't find pg_config. Disabling PostgreSQL support."
+  else
+    LDFLAGS="$LDFLAGS -L`$PG_CONFIG --libdir` -lpq"
+
+    pgsql_cflags=`$PG_CONFIG --includedir`
+    if test "x$pgsql_cflags" != "x/usr/include" ; then
+      CPPFLAGS="$CPPFLAGS -I$pgsql_cflags"
+    fi
+     
+    use_pgsql=yes
+    AC_DEFINE(HAVE_LIBPQ, 1, "Enable PostgreSQL compiletime option")
+  fi
+fi
+
+
+
+# May be required for libgd on bsd
+AC_PATH_X
+if test -n "$x_libraries" && test "x$x_libraries" != xNONE ; then
+	LDFLAGS="$LDFLAGS -L$x_libraries"
+fi
+
+# May be equired for BSD
+LDFLAGS="$LDFLAGS -L/usr/local/lib"
+
+CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+
+#Check for Darwin sw directory
+AC_CHECK_FILE(/sw/lib, LDFLAGS="$LDFLAGS -L/sw/lib")
+AC_CHECK_FILE(/sw/include, CPPFLAGS="$CPPFLAGS -I/sw/include")
+
+#Check for NetBSD usr/pkg directory
+AC_CHECK_FILE(/usr/pkg/lib, LDFLAGS="$LDFLAGS -L/usr/pkg/lib")
+AC_CHECK_FILE(/usr/pkg/include, CPPFLAGS="$CPPFLAGS -I/usr/pkg/include")
+
+# Required for solaris
+AC_CHECK_LIB(socket, connect)
+AC_CHECK_LIB(nsl, gethostbyname)
+AC_CHECK_LIB(resolv, inet_aton)
+
+# Required for openbsd png library
+AC_CHECK_LIB(m, pow)
+
+# Required for gd under netbsd
+AC_CHECK_LIB(iconv, libiconv_open)
+
+# Required Libraries
+AC_CHECK_LIB(png, png_read_info, ,[AC_MSG_ERROR([Bandwidthd requires but cannot libpng])])
+AC_CHECK_LIB(gd, gdImageCreate, ,[AC_MSG_ERROR([Bandwidthd requires but cannot find libgd])])
+AC_CHECK_LIB(pcap, pcap_open_live, ,
+	[AC_CHECK_LIB(wpcap, pcap_open_live, ,[AC_MSG_ERROR([Bandwidthd requires but cannot find libpcap])])])
+
+# Optional Library
+AC_CHECK_FILE(/usr/local/pgsql/lib, LDFLAGS="$LDFLAGS -L/usr/local/pgsql/lib")
+AC_CHECK_FILE(/usr/local/pgsql/include, CPPFLAGS="$CPPFLAGS -I/usr/local/pgsql/include")
+AC_CHECK_LIB(pq, PQconnectdb,
+	[AC_CHECK_LIB(pq,PQexecParams, ,AC_MSG_WARN([libpq exists but is too old... bandwidthd requires support for PQexecParams]))])
+
+AC_CHECK_LIB(sqlite3, sqlite3_open, ,AC_MSG_WARN([sqlite3 is recommended for storage of data but cannot be found]))
+
+# Checks for header files.
+AC_HEADER_DIRENT
+
+AC_CHECK_HEADERS([gd.h],,
+	[AC_CHECK_HEADERS([gd/gd.h],,
+		AC_MSG_ERROR([Bandwidthd cannot find gd.h]))])
+
+AC_CHECK_HEADERS(gdfonts.h,,
+	[AC_CHECK_HEADERS(gd/gdfonts.h,,
+		AC_MSG_ERROR([Bandwidthd cannot find gdfonts.h]))])
+
+AC_CHECK_HEADERS([pcap.h],,
+	[AC_MSG_ERROR([Bandwidthd cannot find pcap.h])])
+
+AC_CHECK_HEADERS([arpa/inet.h errno.h netdb.h netinet/in.h stddef.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h syslog.h unistd.h],,
+	[AC_MSG_ERROR([Bandwidthd cannot find some header files])])
+
+
+#Headers missing on cygwin
+AC_CHECK_HEADERS([arpa/nameser.h])
+AC_CHECK_HEADERS([resolv.h],,,
+	[#include <netinet/in.h>
+	#include <arpa/nameser.h>])
+
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_STRUCT_TM
+
+TCPHDR_SPORT="undefined"
+AC_CHECK_MEMBER(struct tcphdr.source,TCPHDR_SPORT="source",,[#include "bandwidthd.h"])
+AC_CHECK_MEMBER(struct tcphdr.th_sport,TCPHDR_SPORT="th_sport",,[#include "bandwidthd.h"])
+if test "$TCPHDR_SPORT" = "undefined" ; then
+	AC_MSG_ERROR([Could not determine souce port field name for tcphdr structure])
+fi
+AC_DEFINE_UNQUOTED(TCPHDR_SPORT,$TCPHDR_SPORT,[source port field name in tcphdr])
+
+TCPHDR_DPORT="undefined"
+AC_CHECK_MEMBER(struct tcphdr.dest,TCPHDR_DPORT="dest",,[#include "bandwidthd.h"])
+AC_CHECK_MEMBER(struct tcphdr.th_dport,TCPHDR_DPORT="th_dport",,[#include "bandwidthd.h"])
+if test "$TCPHDR_DPORT" = "undefined" ; then
+	AC_MSG_ERROR([Could not determine dest port field name for tcphdr structure])
+fi
+AC_DEFINE_UNQUOTED(TCPHDR_DPORT,$TCPHDR_DPORT,[dest port field name in tcphdr])
+
+
+# Checks for library functions.
+AC_FUNC_MALLOC
+AC_HEADER_STDC
+AC_FUNC_MKTIME
+AC_TYPE_SIGNAL
+AC_FUNC_STAT
+AC_CHECK_FUNCS([alarm gethostbyaddr inet_ntoa memset strdup strftime pcap_findalldevs])
+
+
+# Set directory names
+AC_ARG_WITH([htdocs-dir], AC_HELP_STRING([--with-htdocs-dir=DIR], [Sets default htdocs directory.  Default is LOCALSTATEDIR/bandwidthd/htdocs]),
+	htdocs_dir=${with_htdocs_dir},
+	htdocs_dir="${localstatedir}/bandwidthd/htdocs")
+AC_ARG_WITH([log-dir], AC_HELP_STRING([--with-log-dir=DIR], [Sets default cdf log directory.  Default is LOCALSTATEDIR/bandwidthd]),
+	log_dir=${with_log_dir},
+	log_dir="${localstatedir}/bandwidthd")
+AC_ARG_WITH([extension-dir], AC_HELP_STRING([--with-extension-dir=DIR], [Sets default extension directory.  Default is LOCALSTATEDIR/bandwidthd/extensions]),
+	extension_dir=${with_extension_dir},
+	extension_dir="${localstatedir}/bandwidthd/extensions")
+config_file="${sysconfdir}/bandwidthd.conf"
+AC_DEFINE_DIR(CONFIG_FILE, config_file, [Name of bandwidthd.conf])
+AC_DEFINE_DIR(LOG_DIR, log_dir, [Name of log directory])
+AC_DEFINE_DIR(HTDOCS_DIR, htdocs_dir, [Name of htdocs directory])
+AC_DEFINE_DIR(EXTENSION_DIR, extension_dir, [Name of the extensions directory])
+
+AC_ARG_ENABLE([pgsql], AC_HELP_STRING([--enable-pgsql],
+	[Enable PostgreSQL support. Default is yes, if available.]),
+	enable_pgsql="$enableval", enable_pgsql=yes)
+
+
+
+AC_ARG_ENABLE([python], AC_HELP_STRING([--enable-python],
+	[Enable Python support. Default is yes, if available.]),
+	enable_python="$enableval", enable_python=yes)
+
+HAVEPYTHON=0
+if test $enable_python != "no" ; then
+	if test -n HAVEPYTHON && test `which python2.7-config` != "" ; then
+		PYTHON=`which python2.7`
+		LDFLAGS="$LDFLAGS `python2.7-config --libs`"
+		CPPFLAGS="$CPPFLAGS `python2.7-config --includes`"
+		PYTHON_VERSION="2.7"
+		HAVEPYTHON=1
+		echo "checking for python2.7... yes"
+	else
+		echo "checking for python2.7... no"
+		if test -n HAVEPYTHON && test `which python2.6-config` != "" ; then
+			PYTHON=`which python2.6`
+			LDFLAGS="$LDFLAGS `python2.6-config --libs`"
+			CPPFLAGS="$CPPFLAGS `python2.6-config --includes`"
+			PYTHON_VERSION="2.6"
+			HAVEPYTHON=1
+			echo echo "checking for python2.6... yes"
+		else
+			echo "checking for python2.6... no"
+	
+			if test -n HAVEPYTHON && test `which python2.5-config` != "" ; then
+				PYTHON=`which python2.5`
+				LDFLAGS="$LDFLAGS `python5-config --libs`"
+				CPPFLAGS="$CPPFLAGS `python5-config --includes`"
+				PYTHON_VERSION="2.5"
+				HAVEPYTHON=1
+				echo echo "checking for python2.5... yes"
+			else
+				echo "checking for python2.5... no"
+	
+				if test -n HAVEPYTHON && test `which python-config` != "" ; then
+					PYTHON=`which python`
+					LDFLAGS="$LDFLAGS `python-config --libs`"
+					CPPFLAGS="$CPPFLAGS `python-config --includes`"
+					PYTHON_VERSION=`$PYTHON -c "import sys; \
+									print sys.version[[:3]]"`
+					HAVEPYTHON=1
+					echo "checking for python... $PYTHON_VERSION"
+					AC_MSG_WARN([Python version not supported, but using anyway])
+				else
+					echo "checking for python... no"
+				fi
+			fi
+		fi
+	fi
+fi
+
+
+if test "$HAVEPYTHON" = "1" ; then
+	AC_DEFINE_UNQUOTED(HAVE_PYTHON, 1, "Enable Python compiletime option")
+	AC_DEFINE_UNQUOTED(PYTHON_VERSION, $PYTHON_VERSION, "Set version of python")
+fi
+
+
+AC_OUTPUT(Makefile)

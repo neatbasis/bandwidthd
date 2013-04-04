@@ -1,0 +1,22 @@
+#### INSTALLATION #
+
+You need 3 dependencies to make Bandwidthd work:
+
+libpcap from http://www.tcpdump.org/
+libpng from http://www.libpng.org/
+libgd from http://www.boutell.com/gd/
+
+Chances are you already have all three, if in doubt
+just run configure and see what it complains about. If 
+you are missing libpng, make sure you re-install libgd
+after you install it.
+
+Configure and install the Bandwidthd source:
+
+autoconf && autoheader
+
+./configure && make install
+
+Edit /usr/local/bandwidthd/etc/bandwidthd.conf to suit
+your network.  Start Bandwidthd.   See README for
+details and information on stand alone vs database driven mode.
