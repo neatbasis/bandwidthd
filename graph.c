@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 
 #include <time.h>
+#include <math.h>
 #include "bandwidthd.h"
 
 #ifdef HAVE_ARPA_NAMESER_H
@@ -452,6 +453,25 @@ void GraphIp(struct IPDataStore *DataStore, struct SummaryData *SummaryData, tim
 	}
 
 // Returns YMax
+// Map a traffic rate (bytes/sec) to a pixel height using the configured
+// vertical scale. Any value >= ymax is clipped to the full plot height, so a
+// clamped YMax (graph_max_rate) can never cause an unsigned underflow when the
+// caller computes "(YHEIGHT-YOFFSET) - value". sqrt mode lifts low/background
+// traffic so that brief spikes no longer flatten the rest of the graph.
+// Cumulative stack boundaries must be summed in rate units BEFORE calling this,
+// because sqrt(a)+sqrt(b) != sqrt(a+b).
+static unsigned long long ScaleY(unsigned long long v, unsigned long long ymax)
+{
+	unsigned long long h = (YHEIGHT - YOFFSET);
+	if (ymax == 0)
+		return 0;
+	if (v >= ymax)
+		return h;
+	if (config.graph_yscale == YSCALE_SQRT)
+		return (unsigned long long)(h * sqrt((double)v / (double)ymax));
+	return (v * h) / ymax;   // linear (original behaviour, byte-for-byte)
+}
+
 unsigned long long int GraphData(gdImagePtr im, gdImagePtr im2, struct IPDataStore *DataStore, time_t timestamp, struct SummaryData *SummaryData)
 	{
 	unsigned long long int YMax=0;
@@ -665,62 +685,33 @@ unsigned long long int GraphData(gdImagePtr im, gdImagePtr im2, struct IPDataSto
 			{
 			if (Count[Counter] > 0)
 				{
-				// Convert the bytes/sec to y coords
-				total[Counter] = (total[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				tcp[Counter] = (tcp[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				ftp[Counter] = (ftp[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				http[Counter] = (http[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				mail[Counter] = (mail[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				p2p[Counter] = (p2p[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				udp[Counter] = (udp[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				icmp[Counter] = (icmp[Counter]*(YHEIGHT-YOFFSET))/YMax;
+				// Build the cumulative stack boundaries in rate units FIRST,
+				// then map to pixels. Ordering matters for non-linear scales:
+				// sqrt(a)+sqrt(b) != sqrt(a+b), so the stack must be summed
+				// before ScaleY() is applied, not after.
+				//
+				// Stack 'em up! (still bytes/sec here)
+				// Icmp on the bottom; Udp on icmp; Tcp and p2p on udp;
+				// Http on p2p; Mail on http; Ftp on mail.
+				udp[Counter] += icmp[Counter];      udp2[Counter] += icmp2[Counter];
+				tcp[Counter] += udp[Counter];       tcp2[Counter] += udp2[Counter];
+				p2p[Counter] += udp[Counter];       p2p2[Counter] += udp2[Counter];
+				http[Counter] += p2p[Counter];      http2[Counter] += p2p2[Counter];
+				mail[Counter] += http[Counter];     mail2[Counter] += http2[Counter];
+				ftp[Counter] += mail[Counter];      ftp2[Counter] += mail2[Counter];
 
-				total2[Counter] = (total2[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				tcp2[Counter] = (tcp2[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				ftp2[Counter] = (ftp2[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				http2[Counter] = (http2[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				mail2[Counter] = (mail2[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				p2p2[Counter] = (p2p2[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				udp2[Counter] = (udp2[Counter]*(YHEIGHT-YOFFSET))/YMax;
-				icmp2[Counter] = (icmp2[Counter]*(YHEIGHT-YOFFSET))/YMax;
+				// Map each boundary (and the standalone total envelope) to y
+				// coords through the configured scale. ScaleY() also clips, so
+				// no separate clip pass is needed.
+				total[Counter] = ScaleY(total[Counter], YMax);  total2[Counter] = ScaleY(total2[Counter], YMax);
+				icmp[Counter]  = ScaleY(icmp[Counter],  YMax);  icmp2[Counter]  = ScaleY(icmp2[Counter],  YMax);
+				udp[Counter]   = ScaleY(udp[Counter],   YMax);  udp2[Counter]   = ScaleY(udp2[Counter],   YMax);
+				tcp[Counter]   = ScaleY(tcp[Counter],   YMax);  tcp2[Counter]   = ScaleY(tcp2[Counter],   YMax);
+				p2p[Counter]   = ScaleY(p2p[Counter],   YMax);  p2p2[Counter]   = ScaleY(p2p2[Counter],   YMax);
+				http[Counter]  = ScaleY(http[Counter],  YMax);  http2[Counter]  = ScaleY(http2[Counter],  YMax);
+				mail[Counter]  = ScaleY(mail[Counter],  YMax);  mail2[Counter]  = ScaleY(mail2[Counter],  YMax);
+				ftp[Counter]   = ScaleY(ftp[Counter],   YMax);  ftp2[Counter]   = ScaleY(ftp2[Counter],   YMax);
 
-				// Stack 'em up!
-				// Total is stacked from the bottom
-				// Icmp is on the bottom too
-				// Udp is stacked on top of icmp
-				udp[Counter] += icmp[Counter];
-				udp2[Counter] += icmp2[Counter];
-				// TCP and p2p are stacked on top of Udp
-				tcp[Counter] += udp[Counter];
-				tcp2[Counter] += udp2[Counter];
-				p2p[Counter] += udp[Counter];
-				p2p2[Counter] += udp2[Counter];
-				// Http is stacked on top of p2p
-				http[Counter] += p2p[Counter];
-				http2[Counter] += p2p2[Counter];
-				// Mail is stacked on top of http
-				mail[Counter] += http[Counter];
-				mail2[Counter] += http2[Counter];				
-				// Ftp is stacked on top of mail
-				ftp[Counter] += mail[Counter];
-				ftp2[Counter] += mail2[Counter];
-
-				// Clip to the plot height. When graph_max_rate caps YMax
-				// below the real peak, scaled values can exceed the plotting
-				// area; because these are unsigned, the later
-				// "(YHEIGHT-YOFFSET) - value" would underflow and feed garbage
-				// to gdImageLine. Clipping spikes to the top edge avoids that.
-				// With graph_max_rate unset nothing here ever triggers.
-				#define CLIP_Y(v) if ((v) > (unsigned long long)(YHEIGHT-YOFFSET)) (v) = (YHEIGHT-YOFFSET)
-				CLIP_Y(total[Counter]);  CLIP_Y(total2[Counter]);
-				CLIP_Y(icmp[Counter]);   CLIP_Y(icmp2[Counter]);
-				CLIP_Y(udp[Counter]);    CLIP_Y(udp2[Counter]);
-				CLIP_Y(tcp[Counter]);    CLIP_Y(tcp2[Counter]);
-				CLIP_Y(p2p[Counter]);    CLIP_Y(p2p2[Counter]);
-				CLIP_Y(http[Counter]);   CLIP_Y(http2[Counter]);
-				CLIP_Y(mail[Counter]);   CLIP_Y(mail2[Counter]);
-				CLIP_Y(ftp[Counter]);    CLIP_Y(ftp2[Counter]);
-				#undef CLIP_Y
 
 				// Plot them!
 				// Sent
@@ -818,7 +809,13 @@ void PrepareYAxis(gdImagePtr im, unsigned long long int YMax)
 
 	while (YTic < (YMax - YMax/10))
 		{
-		y = (YHEIGHT-YOFFSET)-((YTic*(YHEIGHT-YOFFSET))/YMax);		  
+		// Position the tick by the same scale used for the bars, so the
+		// labels stay truthful in sqrt mode (label values themselves are
+		// unchanged; only their vertical position bends).
+		if (config.graph_yscale == YSCALE_SQRT)
+			y = (YHEIGHT-YOFFSET) - ((YHEIGHT-YOFFSET) * sqrt((double)YTic / (double)YMax));
+		else
+			y = (YHEIGHT-YOFFSET)-((YTic*(YHEIGHT-YOFFSET))/YMax);		  
 
 		gdImageLine(im, XOFFSET, y, XWIDTH, y, black);		  
 		snprintf(buffer, 20, "%4.1f %cbits/s", (float)(8.0*YTic)/Divisor, YLegend);

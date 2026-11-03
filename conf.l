@@ -23,6 +23,7 @@ dev            { return TOKDEV; }
 skip_intervals      { return TOKSKIPINTERVALS; }
 graph_cutoff      { return TOKGRAPHCUTOFF; }
 graph_max_rate    { return TOKGRAPHMAXRATE; }
+graph_yscale      { return TOKGRAPHYSCALE; }
 promiscuous        { return TOKPROMISC; }
 output_cdf        { return TOKOUTPUTCDF; }    
 recover_cdf        { return TOKRECOVERCDF; }    

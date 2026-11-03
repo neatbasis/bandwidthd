@@ -36,7 +36,7 @@ int bdconfig_wrap()
 %token TOKJUNK TOKSUBNET TOKNOTSUBNET TOKDEV TOKSLASH TOKSKIPINTERVALS TOKGRAPHCUTOFF TOKDESCRIPTION
 %token TOKPROMISC TOKOUTPUTCDF TOKRECOVERCDF TOKGRAPH TOKNEWLINE TOKFILTER TOKMANAGEMENTURL
 %token TOKMETAREFRESH TOKPGSQLCONNECTSTRING TOKSENSORID TOKHTDOCSDIR TOKLOGDIR TOKEXTENSIONS
-%token TOKSQLITEFILENAME TOKGRAPHMAXRATE
+%token TOKSQLITEFILENAME TOKGRAPHMAXRATE TOKGRAPHYSCALE
 %union
 {
     int number;
@@ -66,6 +66,8 @@ command:
   graph_cutoff
   |
   graph_max_rate
+  |
+  graph_yscale
   |
   promisc
   |
@@ -271,6 +273,17 @@ graph_cutoff:
   TOKGRAPHCUTOFF NUMBER
   {
   config.graph_cutoff = $2*1024;
+  }
+  ;
+
+graph_yscale:
+  TOKGRAPHYSCALE string
+  {
+  /* "linear" (default) or "sqrt" */
+  if (!strcmp($2, "sqrt"))
+    config.graph_yscale = YSCALE_SQRT;
+  else
+    config.graph_yscale = YSCALE_LINEAR;
   }
   ;
 

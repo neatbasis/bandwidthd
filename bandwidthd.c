@@ -300,6 +300,7 @@ int main(int argc, char **argv)
 	config.skip_intervals = CONFIG_GRAPHINTERVALS;
 	config.graph_cutoff = CONFIG_GRAPHCUTOFF;
 	config.graph_max_rate = CONFIG_GRAPHMAXRATE;
+	config.graph_yscale = CONFIG_GRAPHYSCALE;
 	config.promisc = TRUE;
 	config.extensions = FALSE;
 	config.graph = TRUE;
@@ -891,7 +892,7 @@ void StoreIPDataInCDF(struct IPData IncData[])
 		HostIp2CharIp(IPData->ip, IPBuffer);
 		fprintf(cdf, "%s,%lu,", IPBuffer, IPData->timestamp);
 		Stats = &(IPData->Send);
-		fprintf(cdf, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu", Stats->total, Stats->icmp, Stats->udp, Stats->tcp, Stats->ftp, Stats->http, Stats->mail, Stats->p2p); 
+		fprintf(cdf, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,", Stats->total, Stats->icmp, Stats->udp, Stats->tcp, Stats->ftp, Stats->http, Stats->mail, Stats->p2p); 
 		Stats = &(IPData->Receive);
 		fprintf(cdf, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu\n", Stats->total, Stats->icmp, Stats->udp, Stats->tcp, Stats->ftp, Stats->http, Stats->mail, Stats->p2p); 
 		}
@@ -1150,10 +1151,10 @@ void RCDF_Load(FILE *cdf)
 		ip->timestamp = timestamp;
 		if (fscanf(cdf, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,",
 			&ip->Send.total, &ip->Send.icmp, &ip->Send.udp,
-			&ip->Send.tcp, &ip->Send.ftp, &ip->Send.http, &ip->Send.mail, &ip->Send.p2p) != 7
+			&ip->Send.tcp, &ip->Send.ftp, &ip->Send.http, &ip->Send.mail, &ip->Send.p2p) != 8
 		  || fscanf(cdf, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu",
 			&ip->Receive.total, &ip->Receive.icmp, &ip->Receive.udp,
-			&ip->Receive.tcp, &ip->Receive.ftp, &ip->Receive.http, &ip->Receive.mail, &ip->Receive.p2p) != 7)
+			&ip->Receive.tcp, &ip->Receive.ftp, &ip->Receive.http, &ip->Receive.mail, &ip->Receive.p2p) != 8)
 			goto End_RecoverDataFromCdf;
 		}
 End_RecoverDataFromCdf:

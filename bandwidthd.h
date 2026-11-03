@@ -95,6 +95,9 @@ typedef u_int16_t uint16_t;
 
 #define CONFIG_GRAPHCUTOFF 1024*1024	// If total data transfered doesn't reach at least this number we don't graph the ip
 #define CONFIG_GRAPHMAXRATE 0	// Fixed vertical ceiling in bits/sec shared by every graph. 0 = auto-scale (original behaviour)
+#define YSCALE_LINEAR 0	// Vertical axis scale: linear (original behaviour)
+#define YSCALE_SQRT   1	// Vertical axis scale: square-root (lifts low traffic so spikes do not flatten it)
+#define CONFIG_GRAPHYSCALE YSCALE_LINEAR
 
 #define LEAD .05	// % Of time to lead the graph
 
@@ -118,6 +121,7 @@ struct config
 	unsigned int skip_intervals;
 	unsigned long long graph_cutoff;
 	unsigned long long graph_max_rate;	// Fixed vertical ceiling in bits/sec, 0 = auto-scale
+	int graph_yscale;	// YSCALE_LINEAR or YSCALE_SQRT
 	int promisc;
 	int extensions;
 	int output_cdf;
