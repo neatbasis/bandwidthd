@@ -894,6 +894,11 @@ void StoreIPDataInCDF(struct IPData IncData[])
 	char logfile[MAX_FILENAME];
 	snprintf(logfile, MAX_FILENAME, "%s/log.%c.0.cdf", config.log_dir, config.tag);
 	cdf = fopen(logfile, "at");
+	if (!cdf)	// log_dir missing or not writable: warn and bail rather than deref NULL
+		{
+		syslog(LOG_ERR, "Cannot open %s for writing CDF data", logfile);
+		return;
+		}
 	for (Counter=0; Counter < IpCount; Counter++)
 		{
 		IPData = &IncData[Counter];
@@ -1043,7 +1048,11 @@ void CommitData(time_t timestamp)
 			logname2[offset] = '1';
 			if (!stat(logname1, &StatBuf)) // File exists
 				rename(logname1, logname2); 
-			fclose(fopen(logname1, "at")); // Touch file
+			{ // Touch file (guard against fopen failure: fclose(NULL) crashes)
+			FILE *touch = fopen(logname1, "at");
+			if (touch)
+				fclose(touch);
+			}
 			RotateLogs = FALSE;
 			}
 		}
