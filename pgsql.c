@@ -245,8 +245,8 @@ PGconn *pgsqlDetermineSensorID(PGconn *conn, char *sensor_id, char *sensor_name,
 	paramValues[0] = Values[0];
 	paramValues[1] = Values[1];
 
-	strncpy(Values[0], sensor_name, MAX_PARAM_SIZE);
-	strncpy(Values[1], interface, MAX_PARAM_SIZE);
+	snprintf(Values[0], MAX_PARAM_SIZE, "%s", sensor_name);
+	snprintf(Values[1], MAX_PARAM_SIZE, "%s", interface);
 	res = PQexecParams(conn, "select sensor_id from sensors where sensor_name = $1 and interface = $2;",
 		2,       /* number of params */
 		NULL,    /* let the backend deduce param type */
@@ -298,9 +298,9 @@ PGconn *pgsqlCreateSensorID(PGconn *conn, char *sensor_id)
 	strncpy(sensor_id, PQgetvalue(res, 0, 0), MAX_PARAM_SIZE);
 	PQclear(res);
 
-	strncpy(Values[0], config.sensor_name, MAX_PARAM_SIZE);
-	strncpy(Values[1], config.dev, MAX_PARAM_SIZE);
-	strncpy(Values[2], sensor_id, MAX_PARAM_SIZE);
+	snprintf(Values[0], MAX_PARAM_SIZE, "%s", config.sensor_name);
+	snprintf(Values[1], MAX_PARAM_SIZE, "%s", config.dev);
+	snprintf(Values[2], MAX_PARAM_SIZE, "%s", sensor_id);
 	// Insert new sensor id
 	res = PQexecParams(conn, "insert into sensors (sensor_name, interface, sensor_id) VALUES ($1, $2, $3);",
 		3,       /* number of parameters */
@@ -338,7 +338,7 @@ PGconn *pgsqlUpdateLinkStatus(PGconn *conn, char *sensor_id)
 
 	for (bc = Broadcasts; bc; bc = bc->next)
 		{
-		strncpy(Values[0], sensor_id, MAX_PARAM_SIZE);
+		snprintf(Values[0], MAX_PARAM_SIZE, "%s", sensor_id);
 		// Determine numeric sensor ID of other sensor
 		if (!(conn = pgsqlDetermineSensorID(conn, Values[1], bc->sensor_name, bc->interface)))
 			return(NULL);		
@@ -412,9 +412,9 @@ PGconn *pgsqlUpdateSensorStatus(PGconn *conn, char *sensor_id)
 	paramValues[3] = Values[3];
 	paramValues[4] = Values[4];
 
-	strncpy(Values[0], sensor_id, MAX_PARAM_SIZE);
-	strncpy(Values[1], config.description, MAX_PARAM_SIZE);	
-	strncpy(Values[2], config.management_url, MAX_PARAM_SIZE);	
+	snprintf(Values[0], MAX_PARAM_SIZE, "%s", sensor_id);
+	snprintf(Values[1], MAX_PARAM_SIZE, "%s", config.description);	
+	snprintf(Values[2], MAX_PARAM_SIZE, "%s", config.management_url);	
 	snprintf(Values[3], MAX_PARAM_SIZE, "%u", BUILD);
 	snprintf(Values[4], MAX_PARAM_SIZE, "%lu", time(NULL)-ProgramStart);	
 	res = PQexecParams(conn, "update sensors set description = $2, management_url = $3, last_connection = now(), build = $4, uptime = $5*interval '1 second' where sensor_id = $1;",
@@ -447,7 +447,7 @@ PGconn *pgsqlIncReboots(PGconn *conn, char *sensor_id)
 
 	paramValues[0] = Values[0];
 
-	strncpy(Values[0], sensor_id, MAX_PARAM_SIZE);
+	snprintf(Values[0], MAX_PARAM_SIZE, "%s", sensor_id);
 	res = PQexecParams(conn, "update sensors set reboots = reboots+1 where sensor_id = $1;",
 			1,       /* number of parameters */
 			NULL,    /* let the backend deduce param type */
@@ -494,7 +494,7 @@ void pgsqlStoreIPData(struct IPData IncData[], struct extensions *extension_data
 	char *sql2;
 	char Values[14][MAX_PARAM_SIZE];
 
-	if (!config.output_database == DB_PGSQL)
+	if (config.output_database != DB_PGSQL)
 		return;
 
 	// Start of actual work
@@ -627,14 +627,14 @@ void pgsqlStoreIPData(struct IPData IncData[], struct extensions *extension_data
 		_exit(2);
 		}
 
-	strncpy(now, PQgetvalue(res, 0, 0), MAX_PARAM_SIZE);
+	snprintf(now, MAX_PARAM_SIZE, "%s", PQgetvalue(res, 0, 0));
 	PQclear(res);
 
 	// Begin transaction
 
 	// **** Perform inserts
-	strncpy(Values[0], sensor_id, MAX_PARAM_SIZE);
-	strncpy(Values[1], now, MAX_PARAM_SIZE);
+	snprintf(Values[0], MAX_PARAM_SIZE, "%s", sensor_id);
+	snprintf(Values[1], MAX_PARAM_SIZE, "%s", now);
 	snprintf(Values[2], MAX_PARAM_SIZE, "%llu", config.interval);
 	for (Counter=0; Counter < IpCount; Counter++)
 		{

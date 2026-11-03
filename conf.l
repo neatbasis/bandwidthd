@@ -6,6 +6,8 @@
 
 %}
 
+%option noinput nounput
+
 %%
 [ \t]+            /* Ignore */;
 \n            { return TOKNEWLINE; }

@@ -158,7 +158,7 @@ struct Statistics
 struct IPData
 	{
 	time_t timestamp;
-	char *mac[1][20];
+	char mac[1][20];
 	uint32_t ip;	// Host byte order
 	struct Statistics Send;
 	struct Statistics Receive;
@@ -238,6 +238,7 @@ void RecoverDataFromCDF(void);
 
 // ************ Adds subnets to the list of subnets that are monitored
 void MonitorSubnet(unsigned int ip, unsigned int mask);
+void IgnoreMonitorSubnet(unsigned int ip, unsigned int mask);
 
 
 // ************ This function converts and IP to a char string

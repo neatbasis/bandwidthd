@@ -250,7 +250,7 @@ void sqliteStoreIPData(struct IPData IncData[], struct extensions *extension_dat
 
 	time_t now;
 
-	if (!config.output_database == DB_SQLITE)
+	if (config.output_database != DB_SQLITE)
 		return;
 
 	// ************ Inititialize the db if it's not already
@@ -420,9 +420,8 @@ void sqliteStoreIPData(struct IPData IncData[], struct extensions *extension_dat
 			{
 			sqlTXInsert = sqlStandardTXInsert;
 			sqlRXInsert = sqlStandardRXInsert;
-			printf("423, %s\n", IPData->mac[0]);
-			sqlite3_bind_text(sqlTXInsert, 4, IPData->mac, -1, SQLITE_STATIC);
-			sqlite3_bind_text(sqlRXInsert, 4, IPData->mac, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sqlTXInsert, 4, IPData->mac[0], -1, SQLITE_STATIC);
+			sqlite3_bind_text(sqlRXInsert, 4, IPData->mac[0], -1, SQLITE_STATIC);
 			i=1;
 			}
 		sqlite3_bind_int(sqlTXInsert, 4+i, IPData->ip);

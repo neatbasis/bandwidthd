@@ -610,7 +610,7 @@ void PacketCallback(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	int AlreadyTotaled = FALSE;
 	PacketCallbackLock = TRUE;
 	eptr = (struct ether_header *) p;
-	vlanhdr = (struct vlanhdr *) p;
+	vlanhdr = (struct VlanHeader *) p;
 	if (eptr->ether_type == htons(1537))
 		ParseBroadcast(p);
 	if (vlanhdr->ether_type[0]==0x81 && vlanhdr->ether_type[1]==0x00) //Two byte-wise checks instead of 1 word-wise check to avoid word boundary issues on some intel processors
