@@ -1074,8 +1074,13 @@ void PrepareXAxis(gdImagePtr im, time_t timestamp)
 	while (x < (XWIDTH-10))
 		{
 		if (x > XOFFSET) {
-			gdImageLine(im, x, YHEIGHT-YOFFSET-5, x, YHEIGHT-YOFFSET+5, black);
-			gdImageLine(im, x+1, YHEIGHT-YOFFSET-5, x+1, YHEIGHT-YOFFSET+5, black);
+			// 6-hour marks: keep a short stub above the baseline (visible when
+			// there is no traffic) but extend the part BELOW the baseline, where
+			// the colored traffic bars never reach. The hourly minor ticks stay
+			// short (+5 below), so these longer downstrokes remain easy to pick
+			// out and the 6-hour rhythm is readable even under heavy traffic.
+			gdImageLine(im, x, YHEIGHT-YOFFSET-5, x, YHEIGHT-YOFFSET+9, black);
+			gdImageLine(im, x+1, YHEIGHT-YOFFSET-5, x+1, YHEIGHT-YOFFSET+9, black);
 			}
 		MarkTime += MarkTimeStep;
 		x = (MarkTime-sample_begin)*((XWIDTH-XOFFSET)/config.range) + XOFFSET;
