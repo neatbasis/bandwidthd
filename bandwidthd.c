@@ -894,7 +894,6 @@ void StoreIPDataInCDF(struct IPData IncData[])
 	char logfile[MAX_FILENAME];
 	snprintf(logfile, MAX_FILENAME, "%s/log.%c.0.cdf", config.log_dir, config.tag);
 	cdf = fopen(logfile, "at");
-	if (!cdf) return;
 	for (Counter=0; Counter < IpCount; Counter++)
 		{
 		IPData = &IncData[Counter];
