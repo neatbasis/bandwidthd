@@ -333,11 +333,16 @@ int main(int argc, char **argv)
 					if (!stat(CONFIG_FILE, &StatBuf))
 						bd_conf = CONFIG_FILE;
 					else
-						{
-						printf("Cannot find bandwidthd.conf, ./etc/bandwidthd.conf or %s\n", CONFIG_FILE);
-						syslog(LOG_ERR, "Cannot find bandwidthd.conf, ./etc/bandwidthd.conf or %s", CONFIG_FILE);
-						exit(1);
-						}
+						// Also look in the distro location, so this build can
+						// drop in for a packaged bandwidthd without moving the file.
+						if (!stat("/etc/bandwidthd/bandwidthd.conf", &StatBuf))
+							bd_conf = "/etc/bandwidthd/bandwidthd.conf";
+						else
+							{
+							printf("Cannot find bandwidthd.conf, ./etc/bandwidthd.conf, %s or /etc/bandwidthd/bandwidthd.conf\n", CONFIG_FILE);
+							syslog(LOG_ERR, "Cannot find bandwidthd.conf, ./etc/bandwidthd.conf, %s or /etc/bandwidthd/bandwidthd.conf", CONFIG_FILE);
+							exit(1);
+							}
 		}
 	bdconfig_in = fopen(bd_conf, "rt");
 	if (!bdconfig_in)
