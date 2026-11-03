@@ -138,6 +138,7 @@ struct config
 	char *htdocs_dir;
 	char *description;
 	char *management_url;
+	char *name_file;	// Path to JSON { "ip": "name" } map, NULL = off (DNS only)
 	};
 
 struct SubnetData

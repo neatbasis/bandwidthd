@@ -2,6 +2,9 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <sys/stat.h>
 #include <netdb.h>
 #include <netinet/in.h>
 
@@ -26,8 +29,127 @@ jmp_buf dnsjump;
 
 static void rdnslngjmp(int signal);
 
+// Decode a JSON string value into out[outsz], translating \uXXXX (BMP) to UTF-8
+// plus the common escapes. src must point just past the opening quote; decoding
+// stops at the closing quote. Names are emitted as UTF-8 (the HTML head now
+// declares charset=utf-8).
+static void json_decode_value(const char *src, char *out, size_t outsz)
+	{
+	size_t o = 0;
+	while (*src && *src != '"' && o < outsz - 1)
+		{
+		if (*src != '\\')
+			{
+			out[o++] = *src++;
+			continue;
+			}
+		src++; // skip the backslash
+		switch (*src)
+			{
+			case 'n':  out[o++] = '\n'; src++; break;
+			case 't':  out[o++] = '\t'; src++; break;
+			case '"':  out[o++] = '"';  src++; break;
+			case '\\': out[o++] = '\\'; src++; break;
+			case '/':  out[o++] = '/';  src++; break;
+			case 'u':
+				{
+				unsigned int cp = 0;
+				int k;
+				src++;
+				for (k = 0; k < 4 && isxdigit((unsigned char)*src); k++)
+					{
+					char c = *src++;
+					cp = cp * 16 + (c <= '9' ? c - '0' : (tolower(c) - 'a' + 10));
+					}
+				if (cp < 0x80)
+					out[o++] = cp;
+				else if (cp < 0x800)
+					{
+					if (o + 2 >= outsz) return;
+					out[o++] = 0xC0 | (cp >> 6);
+					out[o++] = 0x80 | (cp & 0x3F);
+					}
+				else
+					{
+					if (o + 3 >= outsz) return;
+					out[o++] = 0xE0 | (cp >> 12);
+					out[o++] = 0x80 | ((cp >> 6) & 0x3F);
+					out[o++] = 0x80 | (cp & 0x3F);
+					}
+				break;
+				}
+			default: out[o++] = *src++; break;
+			}
+		}
+	out[o] = '\0';
+	}
+
+// Look up an IP in the user-supplied JSON map { "ip": "name", ... }.
+// Returns TRUE and fills Buffer (size 255) on a hit. The file is cached in
+// memory and reloaded only when its mtime changes, so DHCP updates are picked
+// up without restarting. No JSON library is used: the map is a flat object, so
+// we search for the quoted key "a.b.c.d" (both quotes included, which also
+// avoids prefix collisions like 192.168.1.5 vs 192.168.1.57) and decode the
+// string value that follows the colon.
+static int LookupName(unsigned long IP, char *Buffer)
+	{
+	static char *filebuf = NULL;
+	static time_t cached_mtime = 0;
+	struct stat st;
+	char ipstr[20];
+	char token[24];
+	char *p;
+
+	if (!config.name_file || !config.name_file[0])
+		return FALSE;
+	if (stat(config.name_file, &st) != 0)
+		return FALSE;
+	if (filebuf == NULL || st.st_mtime != cached_mtime)
+		{
+		FILE *f = fopen(config.name_file, "rb");
+		char *nb;
+		size_t n;
+		if (!f)
+			return FALSE;
+		nb = malloc(st.st_size + 1);
+		if (!nb)
+			{
+			fclose(f);
+			return FALSE;
+			}
+		n = fread(nb, 1, st.st_size, f);
+		nb[n] = '\0';
+		fclose(f);
+		free(filebuf);
+		filebuf = nb;
+		cached_mtime = st.st_mtime;
+		}
+
+	HostIp2CharIp(IP, ipstr);
+	snprintf(token, sizeof(token), "\"%s\"", ipstr);
+	p = strstr(filebuf, token);
+	if (!p)
+		return FALSE;
+	p += strlen(token);
+	while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+		p++;
+	if (*p != ':')
+		return FALSE;
+	p++;
+	while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+		p++;
+	if (*p != '"')
+		return FALSE;
+	p++;
+	json_decode_value(p, Buffer, 255);
+	return TRUE;
+	}
+
 void rdns(char *Buffer, unsigned long IP)  // This takes over sigalarm!
 	{
+	// User-supplied name map takes precedence over reverse DNS.
+	if (LookupName(IP, Buffer))
+		return;
 #ifdef HAVE_RESOLV_H
 	char DNSError[] = "DNS Timeout: Correct to speed up graphing";
 	char None[] = "Configure DNS to reverse this IP";
@@ -146,12 +268,20 @@ void PrintTableLine(FILE *stream, struct SummaryData *Data, int Counter)
 	char Buffer6[50];
 	char Buffer7[50];
 	char Buffer8[50];
+	char NameBuf[255];
+	char NameSuffix[260];
 
 	// First convert the info to nice, human readable stuff
 	if (Data->IP == 0)
 		strcpy(Buffer1, "Total");
 	else
 		HostIp2CharIp(Data->IP, Buffer1);
+
+	// Append the friendly name (from the JSON map) when the IP is known, so it
+	// shows in the "Ip and Name" column. The Total row (IP == 0) has none.
+	NameSuffix[0] = '\0';
+	if (Data->IP != 0 && LookupName(Data->IP, NameBuf))
+		snprintf(NameSuffix, sizeof(NameSuffix), " - %s", NameBuf);
 
 	FormatNum(Data->Total,		   Buffer2,  50);
 	FormatNum(Data->TotalSent,	   Buffer3,  50);
@@ -170,10 +300,11 @@ void PrintTableLine(FILE *stream, struct SummaryData *Data, int Counter)
 		fprintf(stream, "<TR bgcolor=lightblue>");
 
 	if (Data->Graph)
-		fprintf(stream, "<TD><a href=\"#%s-%c\">%s</a></TD>%s%s%s%s%s%s%s%s%s%s</TR>\n",
+		fprintf(stream, "<TD><a href=\"#%s-%c\">%s</a>%s</TD>%s%s%s%s%s%s%s%s%s%s</TR>\n",
 			Buffer1, // Ip
 			config.tag,
 			Buffer1, // Ip
+			NameSuffix, // Name (or "")
 			Buffer2, // Total
 			Buffer3, // TotalSent
 			Buffer4, // TotalReceived
@@ -185,8 +316,9 @@ void PrintTableLine(FILE *stream, struct SummaryData *Data, int Counter)
 			Buffer7, // UDP
 			Buffer8); // ICMP
 	else
-		fprintf(stream, "<TD>%s</TD>%s%s%s%s%s%s%s%s%s%s</TR>\n",
+		fprintf(stream, "<TD>%s%s</TD>%s%s%s%s%s%s%s%s%s%s</TR>\n",
 			Buffer1, // Ip
+			NameSuffix, // Name (or "")
 			Buffer2, // Total
 			Buffer3, // TotalSent
 			Buffer4, // TotalReceived
@@ -250,6 +382,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 	
 	fprintf(file, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");
 	fprintf(file, "<HTML>\n<HEAD>\n<TITLE>Bandwidthd</TITLE>\n");
+	fprintf(file, "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=utf-8\">\n");
 
 	if (config.meta_refresh)
 		fprintf(file, "<META HTTP-EQUIV=\"REFRESH\" content=\"%u\">\n",
@@ -321,6 +454,7 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 			}
 		fprintf(file, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");
 		fprintf(file, "<HTML>\n<HEAD><TITLE>Bandwidthd - Subnet %s</TITLE>\n", Buffer1);
+		fprintf(file, "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=utf-8\">\n");
 
 		if (config.meta_refresh)
 			fprintf(file, "<META HTTP-EQUIV=\"REFRESH\" content=\"%u\">\n",

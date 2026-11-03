@@ -93,6 +93,7 @@ void bd_CollectingData()
 			{
 			fprintf(index, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");
 			fprintf(index, "<HTML><HEAD><TITLE>Bandwidthd</TITLE>\n");
+			fprintf(index, "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=utf-8\">\n");
 			if (config.meta_refresh)
 				fprintf(index, "<META HTTP-EQUIV=\"REFRESH\" content=\"%u\">\n",
 						config.meta_refresh);
@@ -312,6 +313,7 @@ int main(int argc, char **argv)
 	config.sensor_name = "unset";  
 	config.log_dir = LOG_DIR;
 	config.htdocs_dir = HTDOCS_DIR;
+	config.name_file = NULL;
 	openlog("bandwidthd", LOG_CONS, LOG_DAEMON);
 	// Locate configuration file
 	if (!(bd_conf && !stat(bd_conf, &StatBuf)))
