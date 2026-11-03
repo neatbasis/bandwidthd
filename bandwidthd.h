@@ -98,6 +98,8 @@ typedef u_int16_t uint16_t;
 #define YSCALE_LINEAR 0	// Vertical axis scale: linear (original behaviour)
 #define YSCALE_SQRT   1	// Vertical axis scale: square-root (lifts low traffic so spikes do not flatten it)
 #define CONFIG_GRAPHYSCALE YSCALE_LINEAR
+#define CONFIG_NIGHTSTART 0	// Night-shade start hour [0..23]; start==end disables it (default off)
+#define CONFIG_NIGHTEND 0	// Night-shade end hour [0..23]
 
 #define LEAD .05	// % Of time to lead the graph
 
@@ -122,6 +124,8 @@ struct config
 	unsigned long long graph_cutoff;
 	unsigned long long graph_max_rate;	// Fixed vertical ceiling in bits/sec, 0 = auto-scale
 	int graph_yscale;	// YSCALE_LINEAR or YSCALE_SQRT
+	int night_start;	// Night-shade start hour [0..23], start==end = off
+	int night_end;		// Night-shade end hour [0..23]
 	int promisc;
 	int extensions;
 	int output_cdf;
@@ -266,6 +270,7 @@ void			CommitData(time_t timestamp);
 // ************ Creates our Graphs
 void			GraphIp(struct IPDataStore *DataStore, struct SummaryData *SummaryData, time_t timestamp);
 void			PrepareXAxis(gdImagePtr im, time_t timestamp);
+void			PrepareNightShade(gdImagePtr im, time_t timestamp);
 void			PrepareYAxis(gdImagePtr im, unsigned long long int YMax);
 unsigned long long GraphData(gdImagePtr im, gdImagePtr im2, struct IPDataStore *DataStore, time_t timestamp,  struct SummaryData *SummaryData);
 

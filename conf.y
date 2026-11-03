@@ -36,7 +36,7 @@ int bdconfig_wrap()
 %token TOKJUNK TOKSUBNET TOKNOTSUBNET TOKDEV TOKSLASH TOKSKIPINTERVALS TOKGRAPHCUTOFF TOKDESCRIPTION
 %token TOKPROMISC TOKOUTPUTCDF TOKRECOVERCDF TOKGRAPH TOKNEWLINE TOKFILTER TOKMANAGEMENTURL
 %token TOKMETAREFRESH TOKPGSQLCONNECTSTRING TOKSENSORID TOKHTDOCSDIR TOKLOGDIR TOKEXTENSIONS TOKNAMEFILE
-%token TOKSQLITEFILENAME TOKGRAPHMAXRATE TOKGRAPHYSCALE
+%token TOKSQLITEFILENAME TOKGRAPHMAXRATE TOKGRAPHYSCALE TOKNIGHTSTART TOKNIGHTEND
 %union
 {
     int number;
@@ -68,6 +68,10 @@ command:
   graph_max_rate
   |
   graph_yscale
+  |
+  night_start
+  |
+  night_end
   |
   promisc
   |
@@ -293,6 +297,20 @@ graph_yscale:
     config.graph_yscale = YSCALE_SQRT;
   else
     config.graph_yscale = YSCALE_LINEAR;
+  }
+  ;
+
+night_start:
+  TOKNIGHTSTART NUMBER
+  {
+  config.night_start = $2;
+  }
+  ;
+
+night_end:
+  TOKNIGHTEND NUMBER
+  {
+  config.night_end = $2;
   }
   ;
 

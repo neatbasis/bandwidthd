@@ -517,6 +517,69 @@ void MakeIndexPages(int NumIps, struct SummaryData *SummaryData[])
 	free(SummaryData);
 	}
 
+// Shade the night period with a light grey background band, as a visual aid to
+// locate the time of day. Drawn before the data bars (so the bars sit on top)
+// and gated to graphs where a day is wide enough to be legible, otherwise the
+// long-range graph would just get smeared an even grey. config.night_start and
+// config.night_end are hours [0..23]; start == end disables it (the default).
+void PrepareNightShade(gdImagePtr im, time_t timestamp)
+	{
+	time_t sample_begin;
+	struct tm *timestruct;
+	long int MarkTime;
+	double x1, x2;
+	int nightshade;
+	int ns, ne;
+
+	ns = config.night_start;
+	ne = config.night_end;
+	if (ns == ne || ns < 0 || ns > 23 || ne < 0 || ne > 23)
+		return;	// disabled or out of range
+
+	// Skip when a day is too narrow for the band to be meaningful.
+	if ((24L*60*60*(XWIDTH-XOFFSET))/config.range < 20)
+		return;
+
+	sample_begin = timestamp - config.range;
+
+	// Allocated after the caller's white background, so white stays the palette
+	// background colour.
+	nightshade = gdImageColorAllocate(im, 235, 235, 235);
+
+	// Start one day before the left edge, so a night that began off-screen still
+	// gets its visible remainder shaded.
+	timestruct = localtime((time_t *)&sample_begin);
+	timestruct->tm_sec = 0;
+	timestruct->tm_min = 0;
+	timestruct->tm_hour = 0;
+	MarkTime = mktime(timestruct) - (24*60*60);
+
+	while (1)
+		{
+		time_t nstart, nend;
+
+		nstart = MarkTime + ns*60*60;
+		if (ns < ne)
+			nend = MarkTime + ne*60*60;			// same-day night (no midnight wrap)
+		else
+			nend = MarkTime + (24 + ne)*60*60;	// wraps past midnight (e.g. 19h -> 7h)
+
+		x1 = (nstart - sample_begin)*((double)(XWIDTH-XOFFSET)/config.range) + XOFFSET;
+		x2 = (nend   - sample_begin)*((double)(XWIDTH-XOFFSET)/config.range) + XOFFSET;
+
+		if (x1 < XOFFSET)
+			x1 = XOFFSET;
+		if (x2 > XWIDTH-1)
+			x2 = XWIDTH-1;
+		if (x2 > x1 && x1 < XWIDTH)
+			gdImageFilledRectangle(im, (int)x1, 0, (int)x2, YHEIGHT-YOFFSET, nightshade);
+
+		MarkTime += (24*60*60);
+		if ((MarkTime - sample_begin)*((double)(XWIDTH-XOFFSET)/config.range) + XOFFSET > XWIDTH)
+			break;
+		}
+	}
+
 void GraphIp(struct IPDataStore *DataStore, struct SummaryData *SummaryData, time_t timestamp)
 	{
 	FILE *OutputFile;
@@ -544,6 +607,10 @@ void GraphIp(struct IPDataStore *DataStore, struct SummaryData *SummaryData, tim
 	im2 = gdImageCreate(XWIDTH, YHEIGHT);
 	white = gdImageColorAllocate(im2, 255, 255, 255);
 	//gdImageFill(im2, 10, 10, white);
+
+	// Night-time background shading, drawn first so the data bars sit on top.
+	PrepareNightShade(im, timestamp);
+	PrepareNightShade(im2, timestamp);
 
 	YMax = GraphData(im, im2, DataStore, GraphBeginTime, SummaryData);
 	if (YMax != 0)

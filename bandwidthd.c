@@ -302,6 +302,8 @@ int main(int argc, char **argv)
 	config.graph_cutoff = CONFIG_GRAPHCUTOFF;
 	config.graph_max_rate = CONFIG_GRAPHMAXRATE;
 	config.graph_yscale = CONFIG_GRAPHYSCALE;
+	config.night_start = CONFIG_NIGHTSTART;
+	config.night_end = CONFIG_NIGHTEND;
 	config.promisc = TRUE;
 	config.extensions = FALSE;
 	config.graph = TRUE;
