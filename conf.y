@@ -36,7 +36,7 @@ int bdconfig_wrap()
 %token TOKJUNK TOKSUBNET TOKNOTSUBNET TOKDEV TOKSLASH TOKSKIPINTERVALS TOKGRAPHCUTOFF TOKDESCRIPTION
 %token TOKPROMISC TOKOUTPUTCDF TOKRECOVERCDF TOKGRAPH TOKNEWLINE TOKFILTER TOKMANAGEMENTURL
 %token TOKMETAREFRESH TOKPGSQLCONNECTSTRING TOKSENSORID TOKHTDOCSDIR TOKLOGDIR TOKEXTENSIONS
-%token TOKSQLITEFILENAME
+%token TOKSQLITEFILENAME TOKGRAPHMAXRATE
 %union
 {
     int number;
@@ -64,6 +64,8 @@ command:
   skip_intervals
   |
   graph_cutoff
+  |
+  graph_max_rate
   |
   promisc
   |
@@ -269,6 +271,16 @@ graph_cutoff:
   TOKGRAPHCUTOFF NUMBER
   {
   config.graph_cutoff = $2*1024;
+  }
+  ;
+
+graph_max_rate:
+  TOKGRAPHMAXRATE NUMBER
+  {
+  /* Ceiling is given in kilobits/sec (1024-based, matching the graph axis)
+     and stored internally in bits/sec. 0 disables it (auto-scale).
+     NUMBER is an int, so cast before multiplying to survive fibre rates. */
+  config.graph_max_rate = (unsigned long long)$2 * 1024;
   }
   ;
 

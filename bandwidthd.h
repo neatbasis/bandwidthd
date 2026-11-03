@@ -94,6 +94,7 @@ typedef u_int16_t uint16_t;
 #define CONFIG_GRAPHINTERVALS 1    // 2 -5 Number of Intervals to wait before redrawing the graphs
 
 #define CONFIG_GRAPHCUTOFF 1024*1024	// If total data transfered doesn't reach at least this number we don't graph the ip
+#define CONFIG_GRAPHMAXRATE 0	// Fixed vertical ceiling in bits/sec shared by every graph. 0 = auto-scale (original behaviour)
 
 #define LEAD .05	// % Of time to lead the graph
 
@@ -116,6 +117,7 @@ struct config
 	char *filter;
 	unsigned int skip_intervals;
 	unsigned long long graph_cutoff;
+	unsigned long long graph_max_rate;	// Fixed vertical ceiling in bits/sec, 0 = auto-scale
 	int promisc;
 	int extensions;
 	int output_cdf;

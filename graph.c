@@ -638,6 +638,19 @@ unsigned long long int GraphData(gdImagePtr im, gdImagePtr im2, struct IPDataSto
 			}
 
 	YMax += YMax*0.05;	  // Add an extra 5%
+
+	// Optional fixed ceiling shared by every graph. When graph_max_rate is set,
+	// clamp the auto-scaled maximum so brief high-bandwidth spikes no longer
+	// flatten normal traffic, and so all graphs use the same vertical scale.
+	// graph_max_rate is in bits/sec; YMax is in bytes/sec, hence the /8.
+	// 0 keeps the original per-graph auto-scaling. Spikes above the ceiling
+	// are clipped at the top of the plot (see the CLIP_Y block below).
+	if (config.graph_max_rate)
+		{
+		unsigned long long YCeiling = config.graph_max_rate / 8;
+		if (YCeiling > 0 && YMax > YCeiling)
+			YMax = YCeiling;
+		}
 	
 	if ((SummaryData->IP != 0 && SummaryData->Total < config.graph_cutoff))
 		{
@@ -691,6 +704,23 @@ unsigned long long int GraphData(gdImagePtr im, gdImagePtr im2, struct IPDataSto
 				// Ftp is stacked on top of mail
 				ftp[Counter] += mail[Counter];
 				ftp2[Counter] += mail2[Counter];
+
+				// Clip to the plot height. When graph_max_rate caps YMax
+				// below the real peak, scaled values can exceed the plotting
+				// area; because these are unsigned, the later
+				// "(YHEIGHT-YOFFSET) - value" would underflow and feed garbage
+				// to gdImageLine. Clipping spikes to the top edge avoids that.
+				// With graph_max_rate unset nothing here ever triggers.
+				#define CLIP_Y(v) if ((v) > (unsigned long long)(YHEIGHT-YOFFSET)) (v) = (YHEIGHT-YOFFSET)
+				CLIP_Y(total[Counter]);  CLIP_Y(total2[Counter]);
+				CLIP_Y(icmp[Counter]);   CLIP_Y(icmp2[Counter]);
+				CLIP_Y(udp[Counter]);    CLIP_Y(udp2[Counter]);
+				CLIP_Y(tcp[Counter]);    CLIP_Y(tcp2[Counter]);
+				CLIP_Y(p2p[Counter]);    CLIP_Y(p2p2[Counter]);
+				CLIP_Y(http[Counter]);   CLIP_Y(http2[Counter]);
+				CLIP_Y(mail[Counter]);   CLIP_Y(mail2[Counter]);
+				CLIP_Y(ftp[Counter]);    CLIP_Y(ftp2[Counter]);
+				#undef CLIP_Y
 
 				// Plot them!
 				// Sent

@@ -299,6 +299,7 @@ int main(int argc, char **argv)
 	//config.filter = "ip";
 	config.skip_intervals = CONFIG_GRAPHINTERVALS;
 	config.graph_cutoff = CONFIG_GRAPHCUTOFF;
+	config.graph_max_rate = CONFIG_GRAPHMAXRATE;
 	config.promisc = TRUE;
 	config.extensions = FALSE;
 	config.graph = TRUE;

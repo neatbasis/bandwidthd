@@ -22,6 +22,7 @@ notsubnet         { return TOKNOTSUBNET; }
 dev            { return TOKDEV; }
 skip_intervals      { return TOKSKIPINTERVALS; }
 graph_cutoff      { return TOKGRAPHCUTOFF; }
+graph_max_rate    { return TOKGRAPHMAXRATE; }
 promiscuous        { return TOKPROMISC; }
 output_cdf        { return TOKOUTPUTCDF; }    
 recover_cdf        { return TOKRECOVERCDF; }    
